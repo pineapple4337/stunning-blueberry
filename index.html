@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>pastel dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="my deck">
+    <link class="ios-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffd6e0'/%3E%3Cstop offset='100%25' stop-color='%23e8dbfc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='180' height='180' rx='40' fill='url(%23g)'/%3E%3C/svg%3E">
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffd6e0'/%3E%3Cstop offset='100%25' stop-color='%23e8dbfc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3C/svg%3E">
+
+    <style>
+        body { background-color: #fafafa; overscroll-behavior-y: contain; }
+        .pastel-pink-1 { background-color: #ffd6e0; }
+        .pastel-pink-2 { background-color: #ffeff2; }
+        .pastel-purple-1 { background-color: #e8dbfc; }
+        .pastel-purple-2 { background-color: #f3ebff; }
+        .pastel-orchid { background-color: #fbcbf5; }
+        .pastel-blue { background-color: #d6eaff; }
+        .pastel-mint { background-color: #e1f7ec; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @media (max-width: 767px) {
+            body { height: auto !important; overflow-x: hidden; overscroll-behavior-y: contain; }
+            main { flex-direction: column !important; overflow: visible !important; height: auto !important; }
+            #mobile-sec-calendar, #mobile-sec-timeline, #mobile-sec-expenses { height: auto !important; max-height: none !important; }
+            ul#todo-list { overflow: visible !important; max-height: none !important; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen text-gray-700 font-sans">
+
+    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div class="flex items-center justify-between w-full lg:w-auto">
+                <h1 class="text-xl font-bold tracking-tight text-gray-800">my deck 🌸</h1>
+                <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
+            </div>
+            
+            <form id="todo-form" class="flex flex-col sm:flex-row w-full lg:max-w-4xl gap-2">
+                <input type="text" id="todo-input" placeholder="what's next?" required class="flex-1 min-w-[180px] px-4 py-2.5 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                <div class="flex gap-2 flex-1 sm:flex-none">
+                    <input type="date" id="todo-date" required class="w-full sm:w-auto px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-500">
+                    <input type="time" id="todo-time" class="w-full sm:w-auto px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-500">
+                </div>
+                <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-gray-700 rounded-xl pastel-pink-1 hover:opacity-90 active:scale-95 transition-all cursor-pointer whitespace-nowrap">add task</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="flex md:hidden bg-white border border-gray-100 p-1 rounded-xl gap-1 shrink-0 mx-4 mt-2">
+        <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700">timeline 🌸</button>
+        <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">calendar 📅</button>
+        <button id="tab-btn-expenses" onclick="switchMobileTab('expenses')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">expenses 💰</button>
+    </div>
+
+    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4 min-h-0">
+        
+        <section id="mobile-sec-calendar" class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">...</h2>
+                <div class="flex gap-1">
+                    <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
+                    <button onclick="changeMonth(1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">›</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
+                <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
+            </div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-2 flex-1 auto-rows-fr overflow-y-auto no-scrollbar">
+                </div>
+        </section>
+
+        <section id="mobile-sec-timeline" class="flex w-full md:w-85 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
+            <div class="flex items-center justify-between mb-4 shrink-0">
+                <h2 class="text-lg font-bold text-gray-800">timeline</h2>
+                <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
+            </div>
+            <div id="loading-state" class="text-center py-8 text-sm text-gray-400 shrink-0">loading your deck...</div>
+            <ul id="todo-list" class="space-y-3 flex-1 overflow-y-auto no-scrollbar hidden pb-8"></ul>
+        </section>
+
+        <section id="mobile-sec-expenses" class="hidden md:flex w-full md:w-96 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
+            <h2 class="text-lg font-bold text-gray-800 mb-3">expenses</h2>
+            
+            <form id="express-expense-form" class="mb-4">
+                <label class="text-[11px] font-bold text-purple-900/40 lowercase block mb-1">express input (e.g. "12.50 original simon road")</label>
+                <div class="flex gap-2">
+                    <input type="text" id="express-expense-input" placeholder="amt description..." required class="flex-1 px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                    <button type="submit" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">log</button>
+                </div>
+                <div class="flex gap-3 mt-1.5 justify-center text-[10px] text-gray-400 font-medium">
+                    <span class="cursor-pointer underline" onclick="fillCategoryHint('food & drink')">🍔 food & drink</span>
+                    <span class="cursor-pointer underline" onclick="fillCategoryHint('shopping')">🛍️ shopping</span>
+                    <span class="cursor-pointer underline" onclick="fillCategoryHint('transport')">🚌 transport</span>
+                </div>
+            </form>
+
+            <hr class="border-gray-50 mb-3">
+
+            <div class="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
+                <div id="expense-visual-stats" class="space-y-2">
+                    </div>
+            </div>
+
+            <div class="text-xs font-bold text-gray-400 lowercase mb-2">transaction ledger</div>
+            <div class="flex-1 overflow-y-auto no-scrollbar min-h-0">
+                <ul id="expense-ledger-list" class="space-y-2 text-xs">
+                    </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-xs transition-opacity">
+        <div class="w-full max-w-md max-h-[90vh] md:max-h-none h-full md:h-auto p-6 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                <h3 class="text-md font-bold text-gray-800">task details 📌</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            <input type="hidden" id="modal-task-id">
+            <div class="space-y-3 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0">
+                <div>
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
+                    <input type="text" id="modal-task-title" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                </div>
+                <div class="flex w-full gap-2 table-layout-fixed">
+                    <div style="width: 50%; min-width: 0;">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">due date</label>
+                        <input type="date" id="modal-task-date" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                    <div style="width: 50%; min-width: 0;">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">time (optional)</label>
+                        <input type="time" id="modal-task-time" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase">progress</label>
+                        <span id="modal-slider-value" class="text-xs font-bold text-purple-600">0%</span>
+                    </div>
+                    <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
+                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" style="background: linear-gradient(to right, #ffd6e0 0%, #e8dbfc 0%, #e5e7eb 0%);" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
+                    </div>
+                </div>
+                <div class="flex-1 flex flex-col min-h-[120px]">
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">notes</label>
+                    <textarea id="modal-task-notes" placeholder="add details, links, or lists here..." class="w-full flex-1 px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-300 overflow-y-auto"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-2">
+                <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
+                <button onclick="saveModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE CONFIGURATION ---
+        const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- DOM REFERENCE ELEMENTS ---
+        const todoForm = document.getElementById('todo-form');
+        const todoInput = document.getElementById('todo-input');
+        const todoDate = document.getElementById('todo-date');
+        const todoTime = document.getElementById('todo-time');
+        const todoList = document.getElementById('todo-list');
+        const loadingState = document.getElementById('loading-state');
+        const mobileTaskCount = document.getElementById('task-count');
+        const desktopTaskCount = document.getElementById('desktop-task-count');
+        const calendarDays = document.getElementById('calendar-days');
+        const calendarMonthYear = document.getElementById('calendar-month-year');
+        const expressExpenseForm = document.getElementById('express-expense-form');
+        const expressExpenseInput = document.getElementById('express-expense-input');
+        const expenseLedgerList = document.getElementById('expense-ledger-list');
+        const expenseVisualStats = document.getElementById('expense-visual-stats');
+
+        const taskModal = document.getElementById('task-modal');
+        const modalTaskId = document.getElementById('modal-task-id');
+        const modalTaskTitle = document.getElementById('modal-task-title');
+        const modalTaskDate = document.getElementById('modal-task-date');
+        const modalTaskTime = document.getElementById('modal-task-time');
+        const modalTaskNotes = document.getElementById('modal-task-notes');
+        const modalTaskProgress = document.getElementById('modal-task-progress');
+        const modalSliderValue = document.getElementById('modal-slider-value');
+
+        const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
+        const actualToday = new Date();
+        let displayDate = new Date(); 
+        todoDate.value = actualToday.toISOString().split('T')[0];
+        
+        let globalTodosCache = [];
+        let globalExpensesCache = [];
+        let forceActiveCategoryHint = 'food & drink';
+
+        function format12Hour(timeStr) {
+            if (!timeStr) return '';
+            const [hours, minutes] = timeStr.split(':');
+            let h = parseInt(hours);
+            const ampm = h >= 12 ? 'pm' : 'am';
+            h = h % 12 || 12;
+            return `${h}:${minutes} ${ampm}`;
+        }
+
+        function getCountdownText(dueDateStr) {
+            if (!dueDateStr) return '';
+            const parts = dueDateStr.split(' ');
+            const datePart = parts[0];
+            const timePart = parts[1];
+            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
+            const targetDateClean = new Date(year, month - 1, day);
+            const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
+            const differenceInDays = Math.ceil((targetDateClean.getTime() - todayClean.getTime()) / (1000 * 3600 * 24));
+            
+            if ((differenceInDays === 0 || differenceInDays === 1) && timePart) {
+                const [hours, minutes] = timePart.split(':').map(num => parseInt(num));
+                const preciseTarget = new Date(year, month - 1, day, hours, minutes).getTime();
+                const nowTimestamp = new Date().getTime();
+                const msLeft = preciseTarget - nowTimestamp;
+                const hoursLeft = Math.floor(msLeft / (1000 * 60 * 60));
+                if (msLeft < 0) return '⚠️ overdue';
+                if (hoursLeft === 0) return `⏳ in ${Math.floor(msLeft / (1000 * 60))} mins`;
+                return `⏳ in ${hoursLeft} hrs`;
+            }
+            if (differenceInDays === 0) return '📍 today';
+            if (differenceInDays === 1) return '⏳ tomorrow';
+            if (differenceInDays < 0) return '⚠️ overdue';
+            return `📌 ${differenceInDays} days left`;
+        }
+
+        // --- CORE FETCH HANDLER ---
+        async function fetchAllData() {
+            // Simultaneous pull from core tables
+            const [todosRes, expensesRes] = await Promise.all([
+                supabaseClient.from('todos').select('*').order('due_date', { ascending: true }),
+                supabaseClient.from('expenses').select('*').order('date', { ascending: false })
+            ]);
+
+            if (todosRes.error) console.error('Error reading todos:', todosRes.error);
+            if (expensesRes.error) console.error('Error reading expenses:', expensesRes.error);
+
+            globalTodosCache = todosRes.data || [];
+            globalExpensesCache = expensesRes.data || [];
+
+            // Execute client side structured sorting filters
+            globalTodosCache.sort((a, b) => {
+                if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+                const dA = a.due_date ? a.due_date.split(' ')[0] : '';
+                const dB = b.due_date ? b.due_date.split(' ')[0] : '';
+                if (dA !== dB) return dA.localeCompare(dB);
+                const tA = a.due_date ? a.due_date.split(' ')[1] : undefined;
+                const tB = b.due_date ? b.due_date.split(' ')[1] : undefined;
+                if (tA && !tB) return -1;
+                if (!tA && tB) return 1;
+                if (tA && tB) return tA.localeCompare(tB);
+                return 0;
+            });
+
+            renderDashboard();
+            renderExpenses();
+        }
+
+        function renderDashboard() {
+            todoList.innerHTML = '';
+            loadingState.classList.add('hidden');
+            todoList.classList.remove('hidden');
+            
+            const countStr = `${globalTodosCache.length} task${globalTodosCache.length === 1 ? '' : 's'}`;
+            mobileTaskCount.textContent = countStr;
+            desktopTaskCount.textContent = countStr;
+
+            globalTodosCache.forEach((todo, index) => {
+                const colorClass = pinkPurpleColors[index % pinkPurpleColors.length];
+                const parts = todo.due_date ? todo.due_date.split(' ') : [];
+                const displayTime = parts[1] ? format12Hour(parts[1]) : '';
+                const isDone = todo.is_completed;
+                const countdown = isDone ? '✅ done' : getCountdownText(todo.due_date);
+                const hasNotes = todo.notes && todo.notes.trim() !== '';
+                const progressPct = todo.progress || (isDone ? 100 : 0);
+
+                const li = document.createElement('li');
+                li.id = `task-card-${todo.id}`;
+                li.className = `flex gap-3 items-start p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
+                li.onclick = () => openModal(todo.id);
+                
+                li.innerHTML = `
+                    <div onclick="event.stopPropagation(); fastToggleTodo('${todo.id}', ${isDone})" class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/80 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 transition-colors">
+                        ${isDone ? '✓' : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="text-sm font-semibold lowercase break-words">${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}</div>
+                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0">✕</button>
+                        </div>
+                        <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
+                            <div class="flex items-center gap-2">
+                                <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                                ${!isDone && progressPct > 0 ? `<span class="text-[10px] bg-purple-500/10 text-purple-700 px-1.5 py-0.2 rounded font-bold">${progressPct}%</span>` : ''}
+                            </div>
+                            <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
+                        </div>
+                    </div>
+                `;
+                todoList.appendChild(li);
+            });
+
+            renderCalendarGrid();
+        }
+
+        // --- CALENDAR GRID W/ HEATMAP OVERLAY ---
+        function renderCalendarGrid() {
+            calendarDays.innerHTML = '';
+            const viewYear = displayDate.getFullYear();
+            const viewMonth = displayDate.getMonth();
+            const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+            calendarMonthYear.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+
+            const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
+            const totalDays = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+            for (let i = 0; i < firstDayIndex; i++) {
+                const blank = document.createElement('div');
+                blank.className = "bg-purple-50/10 rounded-xl border border-dashed border-purple-100/40 min-h-[90px]";
+                calendarDays.appendChild(blank);
+            }
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dayBox = document.createElement('div');
+                const isRealToday = day === actualToday.getDate() && viewMonth === actualToday.getMonth() && viewYear === actualToday.getFullYear();
+                const currentDayString = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const dayTasks = globalTodosCache.filter(t => t.due_date && t.due_date.startsWith(currentDayString));
+                const dayExpenses = globalExpensesCache.filter(e => e.date === currentDayString);
+                const dayExpenseTotal = dayExpenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+
+                // HEATMAP ENGINE: Darker pastel tint assigned if expenditure threshold steps up
+                let heatmapStyleClass = 'bg-gray-50/30';
+                if (dayExpenseTotal > 0 && dayExpenseTotal <= 20) heatmapStyleClass = 'background-color: #ffeff2;';
+                else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0;';
+                else if (dayExpenseTotal > 50) heatmapStyleClass = 'background-color: #fbcbf5;';
+
+                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-start justify-between text-left text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isRealToday ? 'border-purple-300 ring-2 ring-purple-100/50' : ''}`;
+                if (!isRealToday && dayExpenseTotal > 0) dayBox.style = heatmapStyleClass;
+
+                let tasksContainerHtml = '<div class="w-full space-y-1 mt-1 max-h-[45px] overflow-y-auto no-scrollbar">';
+                dayTasks.forEach(task => {
+                    const parts = task.due_date.split(' ');
+                    const timeLabel = parts[1] ? format12Hour(parts[1]) : '';
+                    tasksContainerHtml += `
+                        <div onclick="event.stopPropagation(); openModal('${task.id}')" class="text-[10px] truncate px-1.5 py-0.5 rounded bg-purple-100/70 text-purple-800 border border-purple-200/30 leading-tight cursor-pointer hover:bg-purple-200 transition-colors ${task.is_completed ? 'line-through opacity-40' : ''}">
+                            ${timeLabel ? `<span class="font-bold opacity-80">${timeLabel}</span> ` : ''}${task.title}
+                        </div>
+                    `;
+                });
+                tasksContainerHtml += '</div>';
+
+                dayBox.innerHTML = `
+                    <div class="flex justify-between w-full items-center">
+                        <span class="${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1 rounded' : 'text-gray-400'}">${day}</span>
+                        ${dayExpenseTotal > 0 ? `<span class="text-[9px] font-bold text-gray-500 bg-white/70 px-1 rounded">-$${dayExpenseTotal.toFixed(1)}</span>` : ''}
+                    </div>
+                    ${tasksContainerHtml}
+                `;
+                calendarDays.appendChild(dayBox);
+            }
+        }
+
+        // --- LOW FRICTION EXPENSE CONTROLLER ---
+        function fillCategoryHint(cat) {
+            forceActiveCategoryHint = cat;
+            alert(`next quick log bound to: ${cat}`);
+        }
+
+        expressExpenseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const rawVal = expressExpenseInput.value.trim().toLowerCase();
+            if (!rawVal) return;
+
+            // Simple RegExp Matcher: Grabs leading float/integers from line strings cleanly
+            const match = rawVal.match(/^([\d\.]+)\s+(.*)$/);
+            if (!match) {
+                alert('format error. please use: "amount description" (e.g. 8.50 kopi)');
+                return;
+            }
+
+            const parsedAmount = parseFloat(match[1]);
+            let parsedDesc = match[2].trim();
+            if (isNaN(parsedAmount)) {
+                alert('invalid numeric price string.');
+                return;
+            }
+
+            // High intelligence auto-tag context rules to skip pickers
+            let matchedCategory = forceActiveCategoryHint; 
+            if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi') || parsedDesc.includes('transport')) {
+                matchedCategory = 'transport';
+            } else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('bakery') || parsedDesc.includes('mee') || parsedDesc.includes('cafe')) {
+                matchedCategory = 'food & drink';
+            } else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) {
+                matchedCategory = 'shopping';
+            }
+
+            const cleanLocalDateIso = actualToday.toISOString().split('T')[0];
+
+            const { error } = await supabaseClient
+                .from('expenses')
+                .insert([{ date: cleanLocalDateIso, amount: parsedAmount, description: parsedDesc, category: matchedCategory }]);
+
+            if (error) {
+                console.error(error);
+                alert('failed to sync expense entry.');
+            } else {
+                expressExpenseInput.value = '';
+                fetchAllData();
+            }
+        });
+
+        function renderExpenses() {
+            expenseLedgerList.innerHTML = '';
+            expenseVisualStats.innerHTML = '';
+
+            let totals = { 'food & drink': 0, 'shopping': 0, 'transport': 0, 'others': 0 };
+            let totalCombinedAll = 0;
+
+            globalExpensesCache.forEach(exp => {
+                const amt = parseFloat(exp.amount);
+                totalCombinedAll += amt;
+                if (totals[exp.category] !== undefined) totals[exp.category] += amt;
+                else totals['others'] += amt;
+
+                // Build Transaction Row Element
+                const li = document.createElement('li');
+                li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase";
+                
+                // Format dates to standard local readability structures
+                const dateParts = exp.date.split('-');
+                const displayDateString = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+                li.innerHTML = `
+                    <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-gray-700 truncate">${exp.description}</div>
+                        <div class="text-[10px] text-gray-400">${displayDateString} • <span class="italic text-purple-900/40">${exp.category}</span></div>
+                    </div>
+                    <div class="flex items-center gap-2 ml-2 shrink-0">
+                        <span class="font-bold text-gray-600">-$${amt.toFixed(2)}</span>
+                        <button onclick="deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-400 font-bold px-1 text-xs transition-colors cursor-pointer">✕</button>
+                    </div>
+                `;
+                expenseLedgerList.appendChild(li);
+            });
+
+            // Build Visualized Progress Comparison Meters
+            Object.keys(totals).forEach(cat => {
+                const categorySum = totals[cat];
+                const percentageOfBudget = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
+                
+                let colorClass = 'bg-purple-200';
+                if (cat === 'food & drink') colorClass = 'bg-rose-200';
+                if (cat === 'transport') colorClass = 'bg-blue-200';
+                if (cat === 'shopping') colorClass = 'bg-amber-200';
+
+                const block = document.createElement('div');
+                block.innerHTML = `
+                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5">
+                        <span>${cat}</span>
+                        <span class="font-bold">$${categorySum.toFixed(2)} (${Math.round(percentageOfBudget)}%)</span>
+                    </div>
+                    <div class="w-full bg-gray-200/50 h-2 rounded-full overflow-hidden">
+                        <div class="${colorClass} h-full rounded-full transition-all duration-500" style="width: ${percentageOfBudget}%"></div>
+                    </div>
+                `;
+                expenseVisualStats.appendChild(block);
+            });
+        }
+
+        window.deleteExpense = async function(id) {
+            const { error } = await supabaseClient.from('expenses').delete().eq('id', id);
+            if (error) console.error(error);
+            else fetchAllData();
+        };
+
+        // --- TASK MODAL UTILITIES ---
+        window.openModal = function(id) {
+            const todo = globalTodosCache.find(t => t.id === id);
+            if (!todo) return;
+            modalTaskId.value = todo.id;
+            modalTaskTitle.value = todo.title;
+            modalTaskNotes.value = todo.notes || '';
+            const parts = todo.due_date ? todo.due_date.split(' ') : ['', ''];
+            modalTaskDate.value = parts[0] || '';
+            modalTaskTime.value = parts[1] || '';
+            const currentProgress = todo.progress || (todo.is_completed ? 100 : 0);
+            modalTaskProgress.value = currentProgress;
+            modalSliderValue.textContent = currentProgress + '%';
+            modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
+            taskModal.classList.remove('hidden');
+        };
+
+        window.closeModal = () => taskModal.classList.add('hidden');
+
+        window.saveModalChanges = async function() {
+            const id = modalTaskId.value;
+            const updatedTitle = modalTaskTitle.value.trim().toLowerCase();
+            const dateVal = modalTaskDate.value;
+            const timeVal = modalTaskTime.value;
+            const updatedNotes = modalTaskNotes.value;
+            const progressVal = parseInt(modalTaskProgress.value);
+            if (!updatedTitle || !dateVal) return alert('description and date required.');
+
+            const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
+            const targetCompletionBoolean = (progressVal === 100);
+
+            const { error } = await supabaseClient
+                .from('todos')
+                .update({ title: updatedTitle, due_date: compositeDeadlineString, notes: updatedNotes, progress: progressVal, is_completed: targetCompletionBoolean })
+                .eq('id', id);
+
+            if (error) alert('failed to save records.');
+            else { closeModal(); fetchAllData(); }
+        };
+
+        window.fastToggleTodo = async function(id, currentStatus) {
+            const nextStatus = !currentStatus;
+            await supabaseClient.from('todos').update({ is_completed: nextStatus, progress: nextStatus ? 100 : 0 }).eq('id', id);
+            fetchAllData();
+        };
+
+        window.changeMonth = function(direction) {
+            displayDate.setMonth(displayDate.getMonth() + direction);
+            renderCalendarGrid();
+        };
+
+        // --- MOBILE NAVIGATION TAB LOGIC ---
+        window.switchMobileTab = function(activeTab) {
+            const tabs = ['timeline', 'calendar', 'expenses'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const sec = document.getElementById(`mobile-sec-${t}`);
+                if (t === activeTab) {
+                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700";
+                    sec.classList.remove('hidden');
+                    sec.classList.add('flex');
+                } else {
+                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600";
+                    sec.classList.add('hidden');
+                    sec.classList.remove('flex');
+                }
+            });
+        };
+
+        let lastCachedWidth = window.innerWidth;
+        window.addEventListener('resize', () => {
+            if (window.innerWidth === lastCachedWidth) return;
+            lastCachedWidth = window.innerWidth;
+            if (window.innerWidth >= 768) {
+                ['calendar', 'timeline', 'expenses'].forEach(t => {
+                    document.getElementById(`mobile-sec-${t}`).classList.remove('hidden');
+                    document.getElementById(`mobile-sec-${t}`).classList.add('flex');
+                });
+            } else {
+                switchMobileTab('timeline');
+            }
+        });
+
+        todoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = todoInput.value.trim().toLowerCase();
+            const dateVal = todoDate.value;
+            const timeVal = todoTime.value;
+            if (!title || !dateVal) return;
+            const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
+
+            await supabaseClient.from('todos').insert([{ title, is_completed: false, due_date: compositeDeadlineString, notes: '', progress: 0 }]);
+            todoInput.value = ''; todoTime.value = '';
+            fetchAllData();
+        });
+
+        window.deleteTodo = async function(id) {
+            await supabaseClient.from('todos').delete().eq('id', id);
+            fetchAllData();
+        };
+
+        // Initialize App
+        fetchAllData();
+    </script>
+</body>
+</html>
