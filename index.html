@@ -45,18 +45,18 @@
             </div>
             
             <!-- UNIFIED SMART INPUT BAR (COMPACT VERSION) -->
-            <form id="todo-form" class="bg-white p-2 rounded-xl border border-gray-100 shadow-3xs mb-4 w-full">
+            <form id="todo-form" class="bg-white p-2 rounded-xl border border-gray-100 shadow-3xs my-2 w-full">
                 <div class="flex flex-col md:flex-row gap-2 w-full items-stretch md:items-center">
                     
                     <div class="flex flex-1 gap-2 items-center w-full">
                         <div class="shrink-0">
-                            <select id="entry-type" class="h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
-                                <option value="task">📝 task</option>
-                                <option value="expense">💰 expense</option>
+                            <select id="entry-type" class="h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
+                                <option value="task" class="whitespace-nowrap">📝 task</option>
+                                <option value="expense" class="whitespace-nowrap">💰 expense</option>
                             </select>
                         </div>
             
-                        <div class="flex-1">
+                        <div class="flex-1 w-full">
                             <input type="text" id="todo-input" placeholder="type task OR expense details here..." required class="w-full h-9 px-3 text-xs lowercase bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
                         </div>
                     </div>
