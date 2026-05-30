@@ -431,7 +431,8 @@
             else if (parsedDesc.includes('bill') || parsedDesc.includes('fine') || parsedDesc.includes('bank') || parsedDesc.includes('tax') || parsedDesc.includes('fee')) matchedCategory = 'fees';
             else if (parsedDesc.includes('clinic') || parsedDesc.includes('doctor') || parsedDesc.includes('pharmacy') || parsedDesc.includes('med') || parsedDesc.includes('health')) matchedCategory = 'health';
 
-            const cleanLocalDateIso = actualToday.toISOString().split('T')[0];
+            const tzOffset = actualToday.getTimezoneOffset() * 60000; // Offset in milliseconds
+            const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
 
             const { error } = await supabaseClient
                 .from('expenses')
