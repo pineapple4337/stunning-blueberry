@@ -44,26 +44,27 @@
                 <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
-            <form id="todo-form" class="bg-white p-4 rounded-2xl border border-gray-100 shadow-3xs mb-6">
-                <div class="flex flex-col sm:flex-row gap-3">
+            <!-- UNIFIED SMART INPUT BAR (COMPACT VERSION) -->
+            <form id="todo-form" class="bg-white p-2 rounded-xl border border-gray-100 shadow-3xs mb-4">
+                <div class="flex flex-col sm:flex-row gap-2 items-center">
                     <!-- Type Selector Dropdown -->
-                    <div class="shrink-0">
-                        <select id="entry-type" class="h-11 px-3 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
+                    <div class="shrink-0 w-full sm:w-auto">
+                        <select id="entry-type" class="w-full h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
                             <option value="task">📝 task</option>
                             <option value="expense">💰 expense</option>
                         </select>
                     </div>
             
                     <!-- Input Text Box -->
-                    <div class="flex-1">
-                        <input type="text" id="todo-input" placeholder="type entry details here..." required class="w-full h-11 px-4 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                    <div class="flex-1 w-full">
+                        <input type="text" id="todo-input" placeholder="type task OR expense details here..." required class="w-full h-9 px-3 text-xs lowercase bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
                     </div>
                     
-                    <!-- Controls -->
-                    <div class="flex gap-2 shrink-0">
-                        <input type="date" id="todo-date" required class="h-11 px-3 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-xl ...">
-                        <input type="time" id="todo-time" class="h-11 px-3 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-xl ...">
-                        <button type="submit" class="h-11 px-5 text-xs font-bold text-gray-700 pastel-purple-1 rounded-xl ...">log item</button>
+                    <!-- Parameter Controls -->
+                    <div class="flex gap-1.5 w-full sm:w-auto justify-end shrink-0">
+                        <input type="date" id="todo-date" required class="h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
+                        <input type="time" id="todo-time" class="h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
+                        <button type="submit" class="h-9 px-4 text-xs font-bold text-gray-700 pastel-purple-1 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0">log item</button>
                     </div>
                 </div>
             </form>
@@ -220,7 +221,16 @@
         const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', 'pastel-pink-2', 'pastel-purple-2'];
         const actualToday = new Date();
         let displayDate = new Date(); 
-        todoDate.value = actualToday.toISOString().split('T')[0];
+        
+        // Foolproof local date calculation
+        const year = actualToday.getFullYear();
+        const month = String(actualToday.getMonth() + 1).padStart(2, '0'); 
+        const day = String(actualToday.getDate()).padStart(2, '0');
+        const localizedCalendarString = `${year}-${month}-${day}`;
+        
+        if (todoDate) {
+            todoDate.value = localizedCalendarString;
+        }
         
         let globalTodosCache = [];
         let globalExpensesCache = [];
