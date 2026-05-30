@@ -201,7 +201,34 @@
         
         let globalTodosCache = [];
         let globalExpensesCache = [];
-        let forceActiveCategoryHint = 'food & drink';
+        
+        // --- EXPENSE CONFIGURATION & EMOJI DICTIONARY ---
+        let forceActiveCategoryHint = 'food & drinks';
+        const categoryMap = {
+            'food & drinks': { emoji: '🍔', color: 'bg-rose-200', btnId: 'cat-btn-food' },
+            'shopping':      { emoji: '🛍️', color: 'bg-amber-200', btnId: 'cat-btn-shop' },
+            'subscriptions': { emoji: '📺', color: 'bg-blue-200', btnId: 'cat-btn-sub' },
+            'events':        { emoji: '🎟️', color: 'bg-purple-200', btnId: 'cat-btn-evt' },
+            'fees':          { emoji: '💵', color: 'bg-emerald-200', btnId: 'cat-btn-fee' },
+            'health':        { emoji: '💊', color: 'bg-teal-200', btnId: 'cat-btn-hlth' },
+            'transport':     { emoji: '🚌', color: 'bg-indigo-200', btnId: 'cat-btn-trans' }
+        };
+
+        // Handles the interactive button state swapping visually
+        window.setCategory = function(categoryName, emojiStr) {
+            forceActiveCategoryHint = categoryName;
+            document.getElementById('active-cat-display').innerHTML = `${emojiStr} ${categoryName}`;
+            
+            // Reset background styles across all category buttons
+            Object.keys(categoryMap).forEach(key => {
+                const btn = document.getElementById(categoryMap[key].btnId);
+                if (btn) btn.className = "py-2 text-md rounded-lg transition-all hover:bg-white/60";
+            });
+            
+            // Highlight the selected button active index state
+            const targetBtn = document.getElementById(categoryMap[categoryName].btnId);
+            if (targetBtn) targetBtn.className = "py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105";
+        };
 
         function format12Hour(timeStr) {
             if (!timeStr) return '';
@@ -317,7 +344,6 @@
             renderCalendarGrid();
         }
 
-        // --- CALENDAR GRID W/ HEATMAP OVERLAY ---
         function renderCalendarGrid() {
             calendarDays.innerHTML = '';
             const viewYear = displayDate.getFullYear();
@@ -343,7 +369,6 @@
                 const dayExpenses = globalExpensesCache.filter(e => e.date === currentDayString);
                 const dayExpenseTotal = dayExpenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
-                // HEATMAP ENGINE: Darker pastel tint assigned if expenditure threshold steps up
                 let heatmapStyleClass = 'bg-gray-50/30';
                 if (dayExpenseTotal > 0 && dayExpenseTotal <= 20) heatmapStyleClass = 'background-color: #ffeff2;';
                 else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0;';
@@ -376,39 +401,30 @@
         }
 
         // --- LOW FRICTION EXPENSE CONTROLLER ---
-        function fillCategoryHint(cat) {
-            forceActiveCategoryHint = cat;
-            alert(`next quick log bound to: ${cat}`);
-        }
-
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const rawVal = expressExpenseInput.value.trim().toLowerCase();
             if (!rawVal) return;
 
-            // Simple RegExp Matcher: Grabs leading float/integers from line strings cleanly
             const match = rawVal.match(/^([\d\.]+)\s+(.*)$/);
             if (!match) {
-                alert('format error. please use: "amount description" (e.g. 8.50 kopi)');
+                alert('format error. please use: "amount description" (e.g. 14.20 dinner with group)');
                 return;
             }
 
             const parsedAmount = parseFloat(match[1]);
             let parsedDesc = match[2].trim();
-            if (isNaN(parsedAmount)) {
-                alert('invalid numeric price string.');
-                return;
-            }
+            if (isNaN(parsedAmount)) return alert('invalid numeric price string.');
 
-            // High intelligence auto-tag context rules to skip pickers
+            // Intelligent predictive tags based on your column names
             let matchedCategory = forceActiveCategoryHint; 
-            if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi') || parsedDesc.includes('transport')) {
-                matchedCategory = 'transport';
-            } else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('bakery') || parsedDesc.includes('mee') || parsedDesc.includes('cafe')) {
-                matchedCategory = 'food & drink';
-            } else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) {
-                matchedCategory = 'shopping';
-            }
+            if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
+            else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee')) matchedCategory = 'food & drinks';
+            else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('mall') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) matchedCategory = 'shopping';
+            else if (parsedDesc.includes('netflix') || parsedDesc.includes('spotify') || parsedDesc.includes('icloud') || parsedDesc.includes('sub')) matchedCategory = 'subscriptions';
+            else if (parsedDesc.includes('movie') || parsedDesc.includes('concert') || parsedDesc.includes('ticket') || parsedDesc.includes('show') || parsedDesc.includes('event')) matchedCategory = 'events';
+            else if (parsedDesc.includes('bill') || parsedDesc.includes('fine') || parsedDesc.includes('bank') || parsedDesc.includes('tax') || parsedDesc.includes('fee')) matchedCategory = 'fees';
+            else if (parsedDesc.includes('clinic') || parsedDesc.includes('doctor') || parsedDesc.includes('pharmacy') || parsedDesc.includes('med') || parsedDesc.includes('health')) matchedCategory = 'health';
 
             const cleanLocalDateIso = actualToday.toISOString().split('T')[0];
 
@@ -416,40 +432,39 @@
                 .from('expenses')
                 .insert([{ date: cleanLocalDateIso, amount: parsedAmount, description: parsedDesc, category: matchedCategory }]);
 
-            if (error) {
-                console.error(error);
-                alert('failed to sync expense entry.');
-            } else {
-                expressExpenseInput.value = '';
-                fetchAllData();
-            }
+            if (error) alert('failed to sync expense entry.');
+            else { expressExpenseInput.value = ''; fetchAllData(); }
         });
 
         function renderExpenses() {
             expenseLedgerList.innerHTML = '';
             expenseVisualStats.innerHTML = '';
 
-            let totals = { 'food & drink': 0, 'shopping': 0, 'transport': 0, 'others': 0 };
+            let totals = {};
+            Object.keys(categoryMap).forEach(k => totals[k] = 0);
             let totalCombinedAll = 0;
 
             globalExpensesCache.forEach(exp => {
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
-                if (totals[exp.category] !== undefined) totals[exp.category] += amt;
-                else totals['others'] += amt;
+                
+                // Normalizes legacy data keys if applicable
+                let catKey = exp.category === 'food & drink' ? 'food & drinks' : exp.category;
+                if (totals[catKey] !== undefined) totals[catKey] += amt;
+                
+                const meta = categoryMap[catKey] || { emoji: '💰', color: 'bg-gray-200' };
+                const dateParts = exp.date.split('-');
+                const displayDateString = `${dateParts[2]}/${dateParts[1]}`;
 
-                // Build Transaction Row Element
                 const li = document.createElement('li');
                 li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase";
-                
-                // Format dates to standard local readability structures
-                const dateParts = exp.date.split('-');
-                const displayDateString = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-
                 li.innerHTML = `
-                    <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-gray-700 truncate">${exp.description}</div>
-                        <div class="text-[10px] text-gray-400">${displayDateString} • <span class="italic text-purple-900/40">${exp.category}</span></div>
+                    <div class="min-w-0 flex-1 flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-semibold text-gray-700 truncate leading-tight">${exp.description}</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">${displayDateString}</div>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2 ml-2 shrink-0">
                         <span class="font-bold text-gray-600">-$${amt.toFixed(2)}</span>
@@ -458,6 +473,27 @@
                 `;
                 expenseLedgerList.appendChild(li);
             });
+
+            Object.keys(totals).forEach(cat => {
+                const categorySum = totals[cat];
+                if (categorySum === 0) return; // Keeps lists compact
+                
+                const percentageOfBudget = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
+                const meta = categoryMap[cat];
+
+                const block = document.createElement('div');
+                block.innerHTML = `
+                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5 items-center">
+                        <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
+                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(percentageOfBudget)}%)</span></span>
+                    </div>
+                    <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
+                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${percentageOfBudget}%"></div>
+                    </div>
+                `;
+                expenseVisualStats.appendChild(block);
+            });
+        }
 
             // Build Visualized Progress Comparison Meters
             Object.keys(totals).forEach(cat => {
