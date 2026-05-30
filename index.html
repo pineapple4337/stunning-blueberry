@@ -98,9 +98,9 @@
                 </div>
                 
                 <div class="mt-3">
-                    <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drinks</span></div>
+                    <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
                     <div class="grid grid-cols-7 gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                        <button type="button" onclick="setCategory('food & drinks', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drinks">🍔</button>
+                        <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drink">🍔</button>
                         <button type="button" onclick="setCategory('shopping', '🛍️')" id="cat-btn-shop" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="shopping">🛍️</button>
                         <button type="button" onclick="setCategory('subscriptions', '📺')" id="cat-btn-sub" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="subscriptions">📺</button>
                         <button type="button" onclick="setCategory('events', '🎟️')" id="cat-btn-evt" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="events">🎟️</button>
@@ -211,9 +211,9 @@
         let globalExpensesCache = [];
         
         // --- EXPENSE CONFIGURATION & EMOJI DICTIONARY ---
-        let forceActiveCategoryHint = 'food & drinks';
+        let forceActiveCategoryHint = 'food & drink';
         const categoryMap = {
-            'food & drinks': { emoji: '🍔', color: 'bg-rose-200', btnId: 'cat-btn-food' },
+            'food & drink': { emoji: '🍔', color: 'bg-rose-200', btnId: 'cat-btn-food' },
             'shopping':      { emoji: '🛍️', color: 'bg-amber-200', btnId: 'cat-btn-shop' },
             'subscriptions': { emoji: '📺', color: 'bg-blue-200', btnId: 'cat-btn-sub' },
             'events':        { emoji: '🎟️', color: 'bg-purple-200', btnId: 'cat-btn-evt' },
@@ -424,7 +424,7 @@
 
             let matchedCategory = forceActiveCategoryHint; 
             if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
-            else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee')) matchedCategory = 'food & drinks';
+            else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee')) matchedCategory = 'food & drink';
             else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('mall') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) matchedCategory = 'shopping';
             else if (parsedDesc.includes('netflix') || parsedDesc.includes('spotify') || parsedDesc.includes('icloud') || parsedDesc.includes('sub')) matchedCategory = 'subscriptions';
             else if (parsedDesc.includes('movie') || parsedDesc.includes('concert') || parsedDesc.includes('ticket') || parsedDesc.includes('show') || parsedDesc.includes('event')) matchedCategory = 'events';
@@ -454,7 +454,7 @@
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
                 
-                let catKey = exp.category === 'food & drink' ? 'food & drinks' : exp.category;
+                let catKey = exp.category === 'food & drink' ? 'food & drink' : exp.category;
                 if (totals[catKey] !== undefined) totals[catKey] += amt;
                 
                 const meta = categoryMap[catKey] || { emoji: '💰', color: 'bg-gray-200' };
