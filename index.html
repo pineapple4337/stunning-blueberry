@@ -91,15 +91,23 @@
             <h2 class="text-lg font-bold text-gray-800 mb-3">expenses</h2>
             
             <form id="express-expense-form" class="mb-4">
-                <label class="text-[11px] font-bold text-purple-900/40 lowercase block mb-1">express input (e.g. "12.50 original simon road")</label>
+                <label class="text-[11px] font-bold text-purple-900/40 lowercase block mb-1">express input (e.g. "12.50 toast box")</label>
                 <div class="flex gap-2">
                     <input type="text" id="express-expense-input" placeholder="amt description..." required class="flex-1 px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
                     <button type="submit" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">log</button>
                 </div>
-                <div class="flex gap-3 mt-1.5 justify-center text-[10px] text-gray-400 font-medium">
-                    <span class="cursor-pointer underline" onclick="fillCategoryHint('food & drink')">🍔 food & drink</span>
-                    <span class="cursor-pointer underline" onclick="fillCategoryHint('shopping')">🛍️ shopping</span>
-                    <span class="cursor-pointer underline" onclick="fillCategoryHint('transport')">🚌 transport</span>
+                
+                <div class="mt-3">
+                    <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drinks</span></div>
+                    <div class="grid grid-cols-7 gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                        <button type="button" onclick="setCategory('food & drinks', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drinks">🍔</button>
+                        <button type="button" onclick="setCategory('shopping', '🛍️')" id="cat-btn-shop" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="shopping">🛍️</button>
+                        <button type="button" onclick="setCategory('subscriptions', '📺')" id="cat-btn-sub" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="subscriptions">📺</button>
+                        <button type="button" onclick="setCategory('events', '🎟️')" id="cat-btn-evt" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="events">🎟️</button>
+                        <button type="button" onclick="setCategory('fees', '💵')" id="cat-btn-fee" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="fees">💵</button>
+                        <button type="button" onclick="setCategory('health', '💊')" id="cat-btn-hlth" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="health">💊</button>
+                        <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="transport">🚌</button>
+                    </div>
                 </div>
             </form>
 
@@ -217,15 +225,14 @@
         // Handles the interactive button state swapping visually
         window.setCategory = function(categoryName, emojiStr) {
             forceActiveCategoryHint = categoryName;
-            document.getElementById('active-cat-display').innerHTML = `${emojiStr} ${categoryName}`;
+            const contextLabel = document.getElementById('active-cat-display');
+            if (contextLabel) contextLabel.innerHTML = `${emojiStr} ${categoryName}`;
             
-            // Reset background styles across all category buttons
             Object.keys(categoryMap).forEach(key => {
                 const btn = document.getElementById(categoryMap[key].btnId);
                 if (btn) btn.className = "py-2 text-md rounded-lg transition-all hover:bg-white/60";
             });
             
-            // Highlight the selected button active index state
             const targetBtn = document.getElementById(categoryMap[categoryName].btnId);
             if (targetBtn) targetBtn.className = "py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105";
         };
@@ -267,7 +274,6 @@
 
         // --- CORE FETCH HANDLER ---
         async function fetchAllData() {
-            // Simultaneous pull from core tables
             const [todosRes, expensesRes] = await Promise.all([
                 supabaseClient.from('todos').select('*').order('due_date', { ascending: true }),
                 supabaseClient.from('expenses').select('*').order('date', { ascending: false })
@@ -279,7 +285,6 @@
             globalTodosCache = todosRes.data || [];
             globalExpensesCache = expensesRes.data || [];
 
-            // Execute client side structured sorting filters
             globalTodosCache.sort((a, b) => {
                 if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
                 const dA = a.due_date ? a.due_date.split(' ')[0] : '';
@@ -299,12 +304,12 @@
 
         function renderDashboard() {
             todoList.innerHTML = '';
-            loadingState.classList.add('hidden');
+            if (loadingState) loadingState.classList.add('hidden');
             todoList.classList.remove('hidden');
             
             const countStr = `${globalTodosCache.length} task${globalTodosCache.length === 1 ? '' : 's'}`;
-            mobileTaskCount.textContent = countStr;
-            desktopTaskCount.textContent = countStr;
+            if (mobileTaskCount) mobileTaskCount.textContent = countStr;
+            if (desktopTaskCount) desktopTaskCount.textContent = countStr;
 
             globalTodosCache.forEach((todo, index) => {
                 const colorClass = pinkPurpleColors[index % pinkPurpleColors.length];
@@ -345,11 +350,12 @@
         }
 
         function renderCalendarGrid() {
+            if (!calendarDays) return;
             calendarDays.innerHTML = '';
             const viewYear = displayDate.getFullYear();
             const viewMonth = displayDate.getMonth();
             const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-            calendarMonthYear.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+            if (calendarMonthYear) calendarMonthYear.textContent = `${monthNames[viewMonth]} ${viewYear}`;
 
             const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
             const totalDays = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -416,7 +422,6 @@
             let parsedDesc = match[2].trim();
             if (isNaN(parsedAmount)) return alert('invalid numeric price string.');
 
-            // Intelligent predictive tags based on your column names
             let matchedCategory = forceActiveCategoryHint; 
             if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
             else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee')) matchedCategory = 'food & drinks';
@@ -437,6 +442,7 @@
         });
 
         function renderExpenses() {
+            if (!expenseLedgerList || !expenseVisualStats) return;
             expenseLedgerList.innerHTML = '';
             expenseVisualStats.innerHTML = '';
 
@@ -448,7 +454,6 @@
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
                 
-                // Normalizes legacy data keys if applicable
                 let catKey = exp.category === 'food & drink' ? 'food & drinks' : exp.category;
                 if (totals[catKey] !== undefined) totals[catKey] += amt;
                 
@@ -476,7 +481,7 @@
 
             Object.keys(totals).forEach(cat => {
                 const categorySum = totals[cat];
-                if (categorySum === 0) return; // Keeps lists compact
+                if (categorySum === 0) return;
                 
                 const percentageOfBudget = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
                 const meta = categoryMap[cat];
@@ -489,30 +494,6 @@
                     </div>
                     <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
                         <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${percentageOfBudget}%"></div>
-                    </div>
-                `;
-                expenseVisualStats.appendChild(block);
-            });
-        }
-
-            // Build Visualized Progress Comparison Meters
-            Object.keys(totals).forEach(cat => {
-                const categorySum = totals[cat];
-                const percentageOfBudget = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
-                
-                let colorClass = 'bg-purple-200';
-                if (cat === 'food & drink') colorClass = 'bg-rose-200';
-                if (cat === 'transport') colorClass = 'bg-blue-200';
-                if (cat === 'shopping') colorClass = 'bg-amber-200';
-
-                const block = document.createElement('div');
-                block.innerHTML = `
-                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5">
-                        <span>${cat}</span>
-                        <span class="font-bold">$${categorySum.toFixed(2)} (${Math.round(percentageOfBudget)}%)</span>
-                    </div>
-                    <div class="w-full bg-gray-200/50 h-2 rounded-full overflow-hidden">
-                        <div class="${colorClass} h-full rounded-full transition-all duration-500" style="width: ${percentageOfBudget}%"></div>
                     </div>
                 `;
                 expenseVisualStats.appendChild(block);
@@ -582,6 +563,7 @@
             tabs.forEach(t => {
                 const btn = document.getElementById(`tab-btn-${t}`);
                 const sec = document.getElementById(`mobile-sec-${t}`);
+                if (!btn || !sec) return;
                 if (t === activeTab) {
                     btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700";
                     sec.classList.remove('hidden');
@@ -600,8 +582,11 @@
             lastCachedWidth = window.innerWidth;
             if (window.innerWidth >= 768) {
                 ['calendar', 'timeline', 'expenses'].forEach(t => {
-                    document.getElementById(`mobile-sec-${t}`).classList.remove('hidden');
-                    document.getElementById(`mobile-sec-${t}`).classList.add('flex');
+                    const sec = document.getElementById(`mobile-sec-${t}`);
+                    if (sec) {
+                        sec.classList.remove('hidden');
+                        sec.classList.add('flex');
+                    }
                 });
             } else {
                 switchMobileTab('timeline');
@@ -629,5 +614,3 @@
         // Initialize App
         fetchAllData();
     </script>
-</body>
-</html>
