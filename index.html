@@ -51,8 +51,8 @@
                     <div class="flex flex-1 gap-2 items-center w-full">
                         <div class="shrink-0">
                             <select id="entry-type" class="h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
-                                <option value="task" class="whitespace-nowrap">📝 task</option>
-                                <option value="expense" class="whitespace-nowrap">💰 expense</option>
+                                <option value="task">📝 task</option>
+                                <option value="expense">💰 expense</option>
                             </select>
                         </div>
             
@@ -626,12 +626,18 @@
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const entryType = document.getElementById('entry-type').value;
+            // 1. Safely grab the dropdown element
+            const entryTypeElement = document.getElementById('entry-type');
+            const entryType = entryTypeElement ? entryTypeElement.value : 'task';
+            
             const rawInput = todoInput.value.trim().toLowerCase();
             const chosenDate = todoDate.value;
             const chosenTime = todoTime.value;
             
             if (!rawInput) return;
+        
+            // Debug helper: Open your inspect console to see this route trigger live!
+            console.log(`Routing execution engine. Type: "${entryType}", Input: "${rawInput}"`);
         
             if (entryType === 'expense') {
                 // Look for the number at the start of the string (e.g. "3.92 mala fries")
@@ -645,14 +651,28 @@
                 const parsedAmount = parseFloat(expensePatternMatch[1]);
                 const parsedDesc = expensePatternMatch[2].trim();
         
-                // [Your matchedCategory mapping engine goes here...]
+                // Keyword checking engine for automated database category distribution
+                let matchedCategory = typeof forceActiveCategoryHint !== 'undefined' ? forceActiveCategoryHint : 'food & drink'; 
+                if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
+                else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee') || parsedDesc.includes('fries')) matchedCategory = 'food & drink';
+                else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('mall') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) matchedCategory = 'shopping';
+                else if (parsedDesc.includes('netflix') || parsedDesc.includes('spotify') || parsedDesc.includes('icloud') || parsedDesc.includes('sub')) matchedCategory = 'subscriptions';
+                else if (parsedDesc.includes('movie') || parsedDesc.includes('concert') || parsedDesc.includes('ticket') || parsedDesc.includes('show') || parsedDesc.includes('event')) matchedCategory = 'events';
+                else if (parsedDesc.includes('bill') || parsedDesc.includes('fine') || parsedDesc.includes('bank') || parsedDesc.includes('tax') || parsedDesc.includes('fee')) matchedCategory = 'fees';
+                else if (parsedDesc.includes('clinic') || parsedDesc.includes('doctor') || parsedDesc.includes('pharmacy') || parsedDesc.includes('med') || parsedDesc.includes('health')) matchedCategory = 'health';
         
                 const { error } = await supabaseClient
                     .from('expenses')
                     .insert([{ date: chosenDate, amount: parsedAmount, description: parsedDesc, category: matchedCategory }]);
         
-                if (error) alert('failed to sync expense entry.');
-                else { todoInput.value = ''; todoTime.value = ''; fetchAllData(); }
+                if (error) {
+                    alert('failed to sync expense entry.');
+                    console.error('Supabase Expense Error:', error);
+                } else { 
+                    todoInput.value = ''; 
+                    todoTime.value = ''; 
+                    if (typeof fetchAllData === 'function') fetchAllData(); 
+                }
         
             } else {
                 // --- ROUTE TO TIMELINE (Explicitly chosen task mode) ---
@@ -663,8 +683,14 @@
                     .from('todos')
                     .insert([{ title: rawInput, is_completed: false, due_date: compositeDeadlineString, notes: '', progress: 0 }]);
         
-                if (error) alert('failed to sync task entry.');
-                else { todoInput.value = ''; todoTime.value = ''; fetchAllData(); }
+                if (error) {
+                    alert('failed to sync task entry.');
+                    console.error('Supabase Task Error:', error);
+                } else { 
+                    todoInput.value = ''; 
+                    todoTime.value = ''; 
+                    if (typeof fetchAllData === 'function') fetchAllData(); 
+                }
             }
         });
 
