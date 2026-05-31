@@ -455,10 +455,17 @@
                 dayBox.onclick = () => showDaySchedulePopup(currentDayString, dayTasks);
         
                 // Layout with date number anchored top-left, and a small notification dot aligned nicely below it if pending tasks exist
-                const hasPendingTasks = dayTasks.some(t => !t.is_completed);
+                // Filter for uncompleted pending tasks
+                const pendingTasksCount = dayTasks.filter(t => !t.is_completed).length;
+                
+                // Create a compact badge string if there are tasks left to do
+                const taskBadgeHtml = pendingTasksCount > 0 
+                    ? `<div class="mt-auto mb-1 w-5 h-5 rounded-full bg-purple-400 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs">${pendingTasksCount}</div>` 
+                    : '';
+                
                 dayBox.innerHTML = `
                     <span class="text-sm ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>
-                    ${hasPendingTasks ? '<div class="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1 ml-1"></div>' : ''}
+                    ${taskBadgeHtml}
                 `;
                 calendarDays.appendChild(dayBox);
             }
