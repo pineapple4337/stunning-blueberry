@@ -557,6 +557,7 @@
             modalSliderValue.textContent = currentProgress + '%';
             modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
             taskModal.classList.remove('hidden');
+            window.captureModalSnapshot();
         };
 
         window.closeModal = () => taskModal.classList.add('hidden');
@@ -616,7 +617,7 @@
             // SHORTCUT A: Escape Key -> Close Modal with Prompt
             if (event.key === 'Escape') {
                 event.preventDefault();
-                window.handleModalOutsideClick();
+                window.handleModalOutsideClick(event); 
             }
         
             // SHORTCUT B: Control + S OR Command + S (Mac) -> Save Changes instantly
