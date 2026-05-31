@@ -595,7 +595,7 @@
             displayListContainer.innerHTML = '';
         
             if (dayTasks.length === 0) {
-                displayListContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled for this day ✨</div>';
+                displayListContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled for this day</div>';
             } else {
                 dayTasks.forEach(task => {
                     const timeParts = task.due_date.split(' ');
