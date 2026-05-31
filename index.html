@@ -561,14 +561,44 @@
 
         window.closeModal = () => taskModal.classList.add('hidden');
         
-                // 1. CLICK OUTSIDE TO CLOSE WITH PROMPT
+        // 1. Establish a global memory variable at the top layer of your scripts
+        let originalModalSnapshotString = "";
+        
+        // 2. RUN THIS INSIDE YOUR RE-RANGED OPEN MODAL SCRIPT BLOCK
+        // (Find your existing openModal / showModal function where fields are populated, and add this line at the very bottom of it):
+        window.captureModalSnapshot = function() {
+            const title = document.getElementById('modal-task-title').value;
+            const date = document.getElementById('modal-task-date').value;
+            const time = document.getElementById('modal-task-time').value;
+            const notes = document.getElementById('modal-task-notes').value;
+            const progress = document.getElementById('modal-task-progress').value;
+            
+            // Combine everything into a single comparison string
+            originalModalSnapshotString = `${title}|${date}|${time}|${notes}|${progress}`;
+        };
+        
+        // 3. UPDATED CLICK-OUTSIDE DISCARD CONTROLLER
         window.handleModalOutsideClick = function(event) {
-            // Prompt the user if they want to discard or save modifications
+            const currentTitle = document.getElementById('modal-task-title').value;
+            const currentDate = document.getElementById('modal-task-date').value;
+            const currentTime = document.getElementById('modal-task-time').value;
+            const currentNotes = document.getElementById('modal-task-notes').value;
+            const currentProgress = document.getElementById('modal-task-progress').value;
+            
+            const currentSnapshotString = `${currentTitle}|${currentDate}|${currentTime}|${currentNotes}|${currentProgress}`;
+        
+            // If the data matches perfectly, nothing was modified. Close safely with zero prompts!
+            if (originalModalSnapshotString === currentSnapshotString) {
+                window.closeModal();
+                return;
+            }
+        
+            // Otherwise, prompt user before losing changes
             const confirmClose = window.confirm("do you want to save changes before closing?");
             if (confirmClose) {
-                window.saveModalChanges(); // Fire the Supabase save script
+                window.saveModalChanges();
             } else {
-                window.closeModal(); // Exit without saving
+                window.closeModal();
             }
         };
         
