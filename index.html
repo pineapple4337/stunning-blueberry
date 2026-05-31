@@ -702,8 +702,13 @@
         };
 
         window.changeMonth = function(direction) {
-            currentDate.setDate(1);
-            currentDate.setMonth(currentDate.getMonth() + direction);
+            // 1. Safely reset the day to the 1st of the month to fix the May 31st skip bug!
+            displayDate.setDate(1); 
+            
+            // 2. Safely apply the mathematical month movement direction offset
+            displayDate.setMonth(displayDate.getMonth() + direction);
+            
+            // 3. Clear out the day elements grid and force a fresh calendar render step
             renderCalendarGrid();
         };
 
