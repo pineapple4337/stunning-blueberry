@@ -702,7 +702,8 @@
         };
 
         window.changeMonth = function(direction) {
-            displayDate.setMonth(displayDate.getMonth() + direction);
+            currentDate.setDate(1);
+            currentDate.setMonth(currentDate.getMonth() + direction);
             renderCalendarGrid();
         };
 
