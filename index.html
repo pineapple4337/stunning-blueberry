@@ -477,7 +477,13 @@
             Object.keys(categoryMap).forEach(k => totals[k] = 0);
             let totalCombinedAll = 0;
 
+            const currentViewYear = displayDate.getFullYear();
+            const currentViewMonth = String(displayDate.getMonth() + 1).padStart(2, '0');
+            const currentTargetMonthPrefix = `${currentViewYear}-${currentViewMonth}`;
+            
+            // Filter out any data that doesn't belong to the active month before looping
             globalExpensesCache.forEach(exp => {
+                if (!exp.date || !exp.date.startsWith(currentTargetMonthPrefix)) return;
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
                 
