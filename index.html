@@ -187,6 +187,17 @@
             </div>
         </div>
     </div>
+    <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeDaySchedulePopup()">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
+                <h3 id="popup-schedule-date" class="text-sm font-bold text-gray-800 lowercase">schedule details</h3>
+                <button onclick="closeDaySchedulePopup()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            <div id="popup-schedule-content" class="space-y-2 max-h-[260px] overflow-y-auto no-scrollbar">
+                <!-- Programmatic dynamic lists target slot -->
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- SUPABASE CONFIGURATION ---
@@ -436,30 +447,17 @@
                 else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0;';
                 else if (dayExpenseTotal > 50) heatmapStyleClass = 'background-color: #fbcbf5;';
             
-                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-center justify-between text-center text-xs font-medium transition-all min-h-[90px] overflow-hidden ${isRealToday ? 'border-purple-300 ring-2 ring-purple-100/50' : ''}`;
+                // Added pointer class and a dynamic click listener that opens our custom day-view popup box
+                dayBox.className = `p-2 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center text-xs font-medium transition-all min-h-[90px] overflow-hidden cursor-pointer hover:scale-[1.02] ${isRealToday ? 'border-purple-300 ring-2 ring-purple-100/50 bg-white' : ''}`;
                 if (!isRealToday && dayExpenseTotal > 0) dayBox.style = heatmapStyleClass;
+                
+                dayBox.onclick = () => showDaySchedulePopup(currentDayString, dayTasks);
             
-                // Create minimal task indicator dots instead of cramped text strings
-                let dotsHtml = '<div class="flex flex-wrap justify-center gap-1 w-full max-h-[24px] overflow-hidden mt-auto mb-1">';
-                dayTasks.forEach(task => {
-                    const parts = task.due_date.split(' ');
-                    const timeLabel = parts[1] ? format12Hour(parts[1]) : 'all day';
-                    const tooltipText = `${timeLabel} - ${task.title}`;
-                    
-                    // Render a tiny pastel purple dot (or dimmed if completed) with a built-in browser tooltip
-                    dotsHtml += `
-                        <div onclick="event.stopPropagation(); openModal('${task.id}')" 
-                             title="${tooltipText.replace(/"/g, '&quot;')}" 
-                             class="w-2 h-2 rounded-full cursor-pointer transition-transform hover:scale-125 shrink-0 ${task.is_completed ? 'bg-purple-300/40 line-through' : 'bg-purple-500'}">
-                        </div>
-                    `;
-                });
-                dotsHtml += '</div>';
-            
-                // Simplified clean inner layout: Only the date digit and the task indicator dot line
+                // Clean structural layout: Just showing the number and a notification dot badge ONLY if uncompleted tasks exist
+                const hasPendingTasks = dayTasks.some(t => !t.is_completed);
                 dayBox.innerHTML = `
-                    <span class="text-sm mt-1 ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>
-                    ${dotsHtml}
+                    <span class="text-sm ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>
+                    ${hasPendingTasks ? '<div class="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1.5"></div>' : ''}
                 `;
                 calendarDays.appendChild(dayBox);
             }
@@ -582,6 +580,53 @@
         };
         
         window.closeModal = () => taskModal.classList.add('hidden');
+
+        window.showDaySchedulePopup = function(dateStr, dayTasks) {
+            const popup = document.getElementById('calendar-day-popup');
+            const headerTitle = document.getElementById('popup-schedule-date');
+            const displayListContainer = document.getElementById('popup-schedule-content');
+            if (!popup || !displayListContainer) return;
+        
+            // Convert date string from yyyy-mm-dd to a cleaner display layout
+            const [y, m, d] = dateStr.split('-');
+            if (headerTitle) headerTitle.textContent = `schedule: ${d}/${m}/${y}`;
+        
+            displayListContainer.innerHTML = '';
+        
+            if (dayTasks.length === 0) {
+                displayListContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled for this day ✨</div>';
+            } else {
+                dayTasks.forEach(task => {
+                    const timeParts = task.due_date.split(' ');
+                    const renderedTimeDisplay = timeParts[1] ? format12Hour(timeParts[1]) : 'full day';
+                    
+                    const cardBlock = document.createElement('div');
+                    cardBlock.className = `p-3 rounded-xl border border-gray-100/70 flex items-center justify-between gap-3 transition-colors hover:bg-gray-50/50 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
+                    
+                    // Clicking a specific task directly inside this list popup closes this viewer window and reveals the deeper item configurations card automatically
+                    cardBlock.onclick = () => {
+                        closeDaySchedulePopup();
+                        openModal(task.id);
+                    };
+        
+                    cardBlock.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold text-gray-700 truncate lowercase ${task.is_completed ? 'line-through text-gray-400' : ''}">${task.title}</div>
+                            <div class="text-[10px] text-purple-950/50 font-medium mt-0.5">🕒 ${renderedTimeDisplay}</div>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">${task.is_completed ? 'done' : 'pending'}</span>
+                    `;
+                    displayListContainer.appendChild(cardBlock);
+                });
+            }
+            
+            popup.classList.remove('hidden');
+        };
+        
+        window.closeDaySchedulePopup = function() {
+            const popup = document.getElementById('calendar-day-popup');
+            if (popup) popup.classList.add('hidden');
+        };
         
         window.handleModalOutsideClick = function(event) {
             if (window.originalModalSnapshotString === getModalSnapshot()) {
