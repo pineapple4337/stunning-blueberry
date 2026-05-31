@@ -187,6 +187,47 @@
             </div>
         </div>
     </div>
+    <div id="expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeExpenseModal()">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-gray-50 pb-2">
+                <h3 class="text-md font-bold text-gray-800">expense details 💰</h3>
+                <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            <input type="hidden" id="modal-expense-id">
+            <div class="space-y-3 mt-3 w-full">
+                <div class="flex w-full gap-2 table-layout-fixed">
+                    <div style="width: 50%; min-width: 0;">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">date</label>
+                        <input type="date" id="modal-expense-date" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                    <div style="width: 50%; min-width: 0;">
+                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">amount ($)</label>
+                        <input type="number" step="0.01" id="modal-expense-amount" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
+                    <input type="text" id="modal-expense-description" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">category</label>
+                    <select id="modal-expense-category" class="w-full px-3 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 cursor-pointer">
+                        <option value="food & drink">🍔 food & drink</option>
+                        <option value="shopping">🛍️ shopping</option>
+                        <option value="subscriptions">📺 subscriptions</option>
+                        <option value="events">🎟️ events</option>
+                        <option value="fees">💵 fees</option>
+                        <option value="health">💊 health</option>
+                        <option value="transport">🚌 transport</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-4">
+                <button onclick="closeExpenseModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
+                <button onclick="saveExpenseModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
+            </div>
+        </div>
+    </div>
     <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeDaySchedulePopup()">
         <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
@@ -518,7 +559,8 @@
                 const displayDateString = `${dateParts[2]}/${dateParts[1]}`;
 
                 const li = document.createElement('li');
-                li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase";
+                li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase cursor-pointer hover:bg-gray-50 transition-colors";
+                li.onclick = () => openExpenseModal(exp.id);
                 li.innerHTML = `
                     <div class="min-w-0 flex-1 flex items-center gap-2.5">
                         <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
@@ -529,7 +571,7 @@
                     </div>
                     <div class="flex items-center gap-2 ml-2 shrink-0">
                         <span class="font-bold text-gray-600">-$${amt.toFixed(2)}</span>
-                        <button onclick="deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-400 font-bold px-1 text-xs transition-colors cursor-pointer">✕</button>
+                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-400 font-bold px-1 text-xs transition-colors cursor-pointer">✕</button>
                     </div>
                 `;
                 expenseLedgerList.appendChild(li);
@@ -591,6 +633,49 @@
         };
         
         window.closeModal = () => taskModal.classList.add('hidden');
+
+                // --- EXPENSE MODAL UTILITIES ---
+        window.openExpenseModal = function(id) {
+            const expense = globalExpensesCache.find(e => e.id === id);
+            if (!expense) return;
+        
+            document.getElementById('modal-expense-id').value = expense.id;
+            document.getElementById('modal-expense-date').value = expense.date || '';
+            document.getElementById('modal-expense-amount').value = expense.amount || '';
+            document.getElementById('modal-expense-description').value = expense.description || '';
+            document.getElementById('modal-expense-category').value = expense.category || 'food & drink';
+        
+            document.getElementById('expense-modal').classList.remove('hidden');
+        };
+        
+        window.closeExpenseModal = function() {
+            document.getElementById('expense-modal').classList.add('hidden');
+        };
+        
+        window.saveExpenseModalChanges = async function() {
+            const id = document.getElementById('modal-expense-id').value;
+            const dateVal = document.getElementById('modal-expense-date').value;
+            const amountVal = parseFloat(document.getElementById('modal-expense-amount').value);
+            const descVal = document.getElementById('modal-expense-description').value.trim().toLowerCase();
+            const catVal = document.getElementById('modal-expense-category').value;
+        
+            if (!dateVal || isNaN(amountVal) || !descVal) {
+                return alert('all fields are required to update the expense record.');
+            }
+        
+            const { error } = await supabaseClient
+                .from('expenses')
+                .update({ date: dateVal, amount: amountVal, description: descVal, category: catVal })
+                .eq('id', id);
+        
+            if (error) {
+                alert('failed to update expense record.');
+                console.error(error);
+            } else {
+                closeExpenseModal();
+                fetchAllData();
+            }
+        };
 
         window.showDaySchedulePopup = function(dateStr, dayTasks) {
             const popup = document.getElementById('calendar-day-popup');
