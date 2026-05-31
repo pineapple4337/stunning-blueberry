@@ -298,6 +298,35 @@
             return `📌 ${differenceInDays} days left`;
         }
 
+        function parseExpenseInput(rawVal) {
+            const match = rawVal.match(/^([\d\.]+)\s+(.*)$/);
+            if (!match) return null;
+        
+            const amount = parseFloat(match[1]);
+            const description = match[2].trim();
+            if (isNaN(amount)) return null;
+        
+            // Compact keyword routing dictionary
+            const keywords = {
+                'transport': ['bus', 'mrt', 'grab', 'taxi'],
+                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries'],
+                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping'],
+                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub'],
+                'events': ['movie', 'concert', 'ticket', 'show', 'event'],
+                'fees': ['bill', 'fine', 'bank', 'tax', 'fee'],
+                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health']
+            };
+        
+            let category = forceActiveCategoryHint;
+            for (const [cat, words] of Object.entries(keywords)) {
+                if (words.some(word => description.includes(word))) {
+                    category = cat;
+                    break;
+                }
+            }
+            return { amount, description, category };
+        }
+        
         // --- CORE FETCH HANDLER ---
         async function fetchAllData() {
             const [todosRes, expensesRes] = await Promise.all([
@@ -435,35 +464,16 @@
         // --- LOW FRICTION EXPENSE CONTROLLER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const rawVal = expressExpenseInput.value.trim().toLowerCase();
-            if (!rawVal) return;
-
-            const match = rawVal.match(/^([\d\.]+)\s+(.*)$/);
-            if (!match) {
-                alert('format error. please use: "amount description" (e.g. 14.20 dinner with group)');
-                return;
-            }
-
-            const parsedAmount = parseFloat(match[1]);
-            let parsedDesc = match[2].trim();
-            if (isNaN(parsedAmount)) return alert('invalid numeric price string.');
-
-            let matchedCategory = forceActiveCategoryHint; 
-            if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
-            else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee')) matchedCategory = 'food & drink';
-            else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('mall') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) matchedCategory = 'shopping';
-            else if (parsedDesc.includes('netflix') || parsedDesc.includes('spotify') || parsedDesc.includes('icloud') || parsedDesc.includes('sub')) matchedCategory = 'subscriptions';
-            else if (parsedDesc.includes('movie') || parsedDesc.includes('concert') || parsedDesc.includes('ticket') || parsedDesc.includes('show') || parsedDesc.includes('event')) matchedCategory = 'events';
-            else if (parsedDesc.includes('bill') || parsedDesc.includes('fine') || parsedDesc.includes('bank') || parsedDesc.includes('tax') || parsedDesc.includes('fee')) matchedCategory = 'fees';
-            else if (parsedDesc.includes('clinic') || parsedDesc.includes('doctor') || parsedDesc.includes('pharmacy') || parsedDesc.includes('med') || parsedDesc.includes('health')) matchedCategory = 'health';
-
-            const tzOffset = actualToday.getTimezoneOffset() * 60000; // Offset in milliseconds
+            const result = parseExpenseInput(expressExpenseInput.value.trim().toLowerCase());
+            if (!result) return alert('format error. please use: "amount description" (e.g. 14.20 dinner with group)');
+        
+            const tzOffset = actualToday.getTimezoneOffset() * 60000;
             const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
-
+        
             const { error } = await supabaseClient
                 .from('expenses')
-                .insert([{ date: cleanLocalDateIso, amount: parsedAmount, description: parsedDesc, category: matchedCategory }]);
-
+                .insert([{ date: cleanLocalDateIso, amount: result.amount, description: result.description, category: result.category }]);
+        
             if (error) alert('failed to sync expense entry.');
             else { expressExpenseInput.value = ''; fetchAllData(); }
         });
@@ -542,7 +552,12 @@
             else fetchAllData();
         };
 
-        // --- TASK MODAL UTILITIES ---
+        // Helper to grab form state as a single string
+        function getModalSnapshot() {
+            return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
+                .map(id => document.getElementById(id).value).join('|');
+        }
+        
         window.openModal = function(id) {
             const todo = globalTodosCache.find(t => t.id === id);
             if (!todo) return;
@@ -556,51 +571,23 @@
             modalTaskProgress.value = currentProgress;
             modalSliderValue.textContent = currentProgress + '%';
             modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
+            
             taskModal.classList.remove('hidden');
-            window.captureModalSnapshot();
+            // Store snapshot string dynamically directly on the window context
+            window.originalModalSnapshotString = getModalSnapshot();
         };
-
+        
         window.closeModal = () => taskModal.classList.add('hidden');
         
-        // 1. Establish a global memory variable at the top layer of your scripts
-        let originalModalSnapshotString = "";
-        
-        // 2. RUN THIS INSIDE YOUR RE-RANGED OPEN MODAL SCRIPT BLOCK
-        // (Find your existing openModal / showModal function where fields are populated, and add this line at the very bottom of it):
-        window.captureModalSnapshot = function() {
-            const title = document.getElementById('modal-task-title').value;
-            const date = document.getElementById('modal-task-date').value;
-            const time = document.getElementById('modal-task-time').value;
-            const notes = document.getElementById('modal-task-notes').value;
-            const progress = document.getElementById('modal-task-progress').value;
-            
-            // Combine everything into a single comparison string
-            originalModalSnapshotString = `${title}|${date}|${time}|${notes}|${progress}`;
-        };
-        
-        // 3. UPDATED CLICK-OUTSIDE DISCARD CONTROLLER
         window.handleModalOutsideClick = function(event) {
-            const currentTitle = document.getElementById('modal-task-title').value;
-            const currentDate = document.getElementById('modal-task-date').value;
-            const currentTime = document.getElementById('modal-task-time').value;
-            const currentNotes = document.getElementById('modal-task-notes').value;
-            const currentProgress = document.getElementById('modal-task-progress').value;
-            
-            const currentSnapshotString = `${currentTitle}|${currentDate}|${currentTime}|${currentNotes}|${currentProgress}`;
-        
-            // If the data matches perfectly, nothing was modified. Close safely with zero prompts!
-            if (originalModalSnapshotString === currentSnapshotString) {
+            if (window.originalModalSnapshotString === getModalSnapshot()) {
                 window.closeModal();
                 return;
             }
         
-            // Otherwise, prompt user before losing changes
             const confirmClose = window.confirm("do you want to save changes before closing?");
-            if (confirmClose) {
-                window.saveModalChanges();
-            } else {
-                window.closeModal();
-            }
+            if (confirmClose) window.saveModalChanges();
+            else window.closeModal();
         };
         
         // 2. DETECT INTERIOR FORM MODF_CHANGES FOR SHORTCUT CHECKING
@@ -712,39 +699,21 @@
             console.log(`Routing execution engine. Type: "${entryType}", Input: "${rawInput}"`);
         
             if (entryType === 'expense') {
-                // Look for the number at the start of the string (e.g. "3.92 mala fries")
-                const expensePatternMatch = rawInput.match(/^([\d\.]+)\s+(.*)$/);
+            const result = parseExpenseInput(rawInput);
+            if (!result) return alert('please start with a number for expenses (e.g. 3.92 mala fries)');
         
-                if (!expensePatternMatch) {
-                    alert('please start with a number for expenses (e.g. 3.92 mala fries)');
-                    return;
-                }
+            const { error } = await supabaseClient
+                .from('expenses')
+                .insert([{ date: chosenDate, amount: result.amount, description: result.description, category: result.category }]);
         
-                const parsedAmount = parseFloat(expensePatternMatch[1]);
-                const parsedDesc = expensePatternMatch[2].trim();
-        
-                // Keyword checking engine for automated database category distribution
-                let matchedCategory = typeof forceActiveCategoryHint !== 'undefined' ? forceActiveCategoryHint : 'food & drink'; 
-                if (parsedDesc.includes('bus') || parsedDesc.includes('mrt') || parsedDesc.includes('grab') || parsedDesc.includes('taxi')) matchedCategory = 'transport';
-                else if (parsedDesc.includes('baking') || parsedDesc.includes('food') || parsedDesc.includes('lunch') || parsedDesc.includes('dinner') || parsedDesc.includes('cafe') || parsedDesc.includes('kopi') || parsedDesc.includes('bakery') || parsedDesc.includes('mee') || parsedDesc.includes('fries')) matchedCategory = 'food & drink';
-                else if (parsedDesc.includes('muji') || parsedDesc.includes('uniqlo') || parsedDesc.includes('shopee') || parsedDesc.includes('mall') || parsedDesc.includes('clothes') || parsedDesc.includes('shopping')) matchedCategory = 'shopping';
-                else if (parsedDesc.includes('netflix') || parsedDesc.includes('spotify') || parsedDesc.includes('icloud') || parsedDesc.includes('sub')) matchedCategory = 'subscriptions';
-                else if (parsedDesc.includes('movie') || parsedDesc.includes('concert') || parsedDesc.includes('ticket') || parsedDesc.includes('show') || parsedDesc.includes('event')) matchedCategory = 'events';
-                else if (parsedDesc.includes('bill') || parsedDesc.includes('fine') || parsedDesc.includes('bank') || parsedDesc.includes('tax') || parsedDesc.includes('fee')) matchedCategory = 'fees';
-                else if (parsedDesc.includes('clinic') || parsedDesc.includes('doctor') || parsedDesc.includes('pharmacy') || parsedDesc.includes('med') || parsedDesc.includes('health')) matchedCategory = 'health';
-        
-                const { error } = await supabaseClient
-                    .from('expenses')
-                    .insert([{ date: chosenDate, amount: parsedAmount, description: parsedDesc, category: matchedCategory }]);
-        
-                if (error) {
-                    alert('failed to sync expense entry.');
-                    console.error('Supabase Expense Error:', error);
-                } else { 
-                    todoInput.value = ''; 
-                    todoTime.value = ''; 
-                    if (typeof fetchAllData === 'function') fetchAllData(); 
-                }
+            if (error) {
+                alert('failed to sync expense entry.');
+                console.error('Supabase Expense Error:', error);
+            } else { 
+                todoInput.value = ''; 
+                todoTime.value = ''; 
+                if (typeof fetchAllData === 'function') fetchAllData(); 
+            }
         
             } else {
                 // --- ROUTE TO TIMELINE (Explicitly chosen task mode) ---
