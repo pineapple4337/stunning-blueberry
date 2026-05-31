@@ -145,8 +145,8 @@
 
     </main>
 
-    <div id="task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-xs transition-opacity">
-        <div class="w-full max-w-md max-h-[90vh] md:max-h-none h-full md:h-auto p-6 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-4">
+    <div id="task-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="handleModalOutsideClick(event)">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-50 pb-2">
                 <h3 class="text-md font-bold text-gray-800">task details 📌</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
@@ -560,7 +560,42 @@
         };
 
         window.closeModal = () => taskModal.classList.add('hidden');
-
+        
+                // 1. CLICK OUTSIDE TO CLOSE WITH PROMPT
+        window.handleModalOutsideClick = function(event) {
+            // Prompt the user if they want to discard or save modifications
+            const confirmClose = window.confirm("do you want to save changes before closing?");
+            if (confirmClose) {
+                window.saveModalChanges(); // Fire the Supabase save script
+            } else {
+                window.closeModal(); // Exit without saving
+            }
+        };
+        
+        // 2. DETECT INTERIOR FORM MODF_CHANGES FOR SHORTCUT CHECKING
+        function isModalFormActive() {
+            const modal = document.getElementById('task-modal');
+            return modal && !modal.classList.contains('hidden');
+        }
+        
+        // 3. KEYBOARD SHORTCUT BINDINGS ENGINE
+        window.addEventListener('keydown', function(event) {
+            // Only intercept keys if the edit modal window is actively open
+            if (!isModalFormActive()) return;
+        
+            // SHORTCUT A: Escape Key -> Close Modal with Prompt
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                window.handleModalOutsideClick();
+            }
+        
+            // SHORTCUT B: Control + S OR Command + S (Mac) -> Save Changes instantly
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+                event.preventDefault(); // Stop browser from trying to save the webpage file
+                window.saveModalChanges();
+            }
+        });
+                
         window.saveModalChanges = async function() {
             const id = modalTaskId.value;
             const updatedTitle = modalTaskTitle.value.trim().toLowerCase();
