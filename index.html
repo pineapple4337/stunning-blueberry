@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>to-dos 📚</title>
+    <title>to-dos & expenses 📚</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -11,7 +11,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="to-dos 📚">
     <link class="ios-icon" rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffd6e0'/%3E%3Cstop offset='100%25' stop-color='%23e8dbfc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='180' height='180' rx='40' fill='url(%23g)'/%3E%3C/svg%3E">
-
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffd6e0'/%3E%3Cstop offset='100%25' stop-color='%23e8dbfc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3C/svg%3E">
 
     <style>
@@ -35,19 +34,31 @@
         }
     </style>
 </head>
-<body class="flex flex-col h-screen text-gray-700 font-sans">
+<body class="flex flex-col h-screen text-gray-700 font-sans relative">
+
+    <div id="duplicate-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/90 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all duration-300">
+        <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-gray-800 lowercase">possible duplicate entry</div>
+                <div id="duplicate-toast-msg" class="text-[11px] text-gray-500 mt-0.5 lowercase"></div>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 mt-1">
+            <button onclick="dismissDuplicate()" class="px-3 py-1.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-lg cursor-pointer">skip entry</button>
+            <button onclick="forceInsertDuplicate()" class="px-3 py-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-lg cursor-pointer">log anyway</button>
+        </div>
+    </div>
 
     <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
             <div class="flex items-center justify-between w-full lg:w-auto">
-                <h1 class="text-xl font-bold tracking-tight text-gray-800 whitespace-nowrap">to-dos 📚</h1>
+                <h1 class="text-xl font-bold tracking-tight text-gray-800 whitespace-nowrap">to-dos & expenses 📚</h1>
                 <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
             </div>
             
-            <!-- UNIFIED SMART INPUT BAR (COMPACT VERSION) -->
             <form id="todo-form" class="bg-white p-2 rounded-xl border border-gray-100 shadow-3xs my-2 w-full">
                 <div class="flex flex-col md:flex-row gap-2 w-full items-stretch md:items-center">
-                    
                     <div class="flex flex-1 gap-2 items-center w-full">
                         <div class="shrink-0">
                             <select id="entry-type" class="h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
@@ -55,18 +66,15 @@
                                 <option value="expense">💰 expense</option>
                             </select>
                         </div>
-            
                         <div class="flex-1 w-full">
                             <input type="text" id="todo-input" placeholder="type task OR expense details here..." required class="w-full h-9 px-3 text-xs lowercase bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
                         </div>
                     </div>
-                    
                     <div class="flex gap-1.5 w-full md:w-auto justify-between md:justify-end items-center shrink-0">
                         <input type="date" id="todo-date" required class="flex-1 md:flex-initial h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
                         <input type="time" id="todo-time" class="flex-1 md:flex-initial h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
                         <button type="submit" class="h-9 px-4 text-xs font-bold text-gray-700 pastel-purple-1 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0">log item</button>
                     </div>
-            
                 </div>
             </form>
         </div>
@@ -80,7 +88,7 @@
 
     <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4 min-h-0">
         
-        <section id="mobile-sec-calendar" class="hidden md:flex flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
+        <section id="mobile-sec-calendar" class="hidden md:flex html-calendar-grid flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">...</h2>
                 <div class="flex gap-1">
@@ -91,8 +99,7 @@
             <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
                 <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
             </div>
-            <div id="calendar-days" class="grid grid-cols-7 grid-rows-none auto-rows-stretch gap-2 flex-1 h-full min-h-0 overflow-hidden no-scrollbar">
-                </div>
+            <div id="calendar-days" class="grid grid-cols-7 grid-rows-none auto-rows-stretch gap-2 flex-1 h-full min-h-0 overflow-hidden no-scrollbar"></div>
         </section>
 
         <section id="mobile-sec-timeline" class="flex w-full md:w-85 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
@@ -113,14 +120,26 @@
                 </div>
             </div>
             
-            <form id="express-expense-form" class="mb-4">
-                <label class="text-[11px] font-bold text-purple-900/40 lowercase block mb-1">express input (e.g. "1.00 rc4 washing machine")</label>
-                <div class="flex gap-2">
-                    <input type="text" id="express-expense-input" placeholder="amt description..." required class="flex-1 px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
-                    <button type="submit" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">log</button>
+            <div class="mb-4 space-y-2">
+                <div id="drop-zone" class="border-2 border-dashed border-gray-200 hover:border-purple-300 rounded-xl p-4 text-center cursor-pointer transition-all bg-gray-50/50 relative overflow-hidden group">
+                    <input type="file" id="receipt-file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    <div id="drop-zone-prompt" class="space-y-1">
+                        <div class="text-xl group-hover:scale-110 transition-transform">📷</div>
+                        <div class="text-[11px] font-bold text-gray-500 lowercase">drop receipt screenshot or tap to scan</div>
+                        <div class="text-[9px] text-gray-400 lowercase">powered by gemini 1.5 flash</div>
+                    </div>
+                    <div id="drop-zone-loader" class="hidden absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-1.5">
+                        <div class="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                        <div class="text-[10px] font-bold text-purple-600 lowercase animate-pulse">reading picture parameters...</div>
+                    </div>
                 </div>
+
+                <form id="express-expense-form" class="flex gap-2">
+                    <input type="text" id="express-expense-input" placeholder="or type amt description..." required class="flex-1 px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                    <button type="submit" class="px-3 py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">log</button>
+                </form>
                 
-                <div class="mt-3">
+                <div class="mt-2">
                     <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
                     <div class="grid grid-cols-7 gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                         <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drink">🍔</button>
@@ -132,20 +151,18 @@
                         <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="transport">🚌</button>
                     </div>
                 </div>
-            </form>
+            </div>
 
             <hr class="border-gray-50 mb-3">
 
             <div class="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
                 <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
-                <div id="expense-visual-stats" class="space-y-2">
-                    </div>
+                <div id="expense-visual-stats" class="space-y-2"></div>
             </div>
 
             <div class="text-xs font-bold text-gray-400 lowercase mb-2">transaction ledger</div>
             <div class="flex-1 overflow-y-auto no-scrollbar min-h-0">
-                <ul id="expense-ledger-list" class="space-y-2 text-xs">
-                    </ul>
+                <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
             </div>
         </section>
 
@@ -158,7 +175,7 @@
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
             </div>
             <input type="hidden" id="modal-task-id">
-            <div class="space-y-3 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0">
+            <div class="space-y-3 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0 mt-3">
                 <div>
                     <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
                     <input type="text" id="modal-task-title" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
@@ -179,7 +196,7 @@
                         <span id="modal-slider-value" class="text-xs font-bold text-purple-600">0%</span>
                     </div>
                     <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" style="background: linear-gradient(to right, #ffd6e0 0%, #e8dbfc 0%, #e5e7eb 0%);" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
+                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
                     </div>
                 </div>
                 <div class="flex-1 flex flex-col min-h-[120px]">
@@ -193,6 +210,7 @@
             </div>
         </div>
     </div>
+
     <div id="expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeExpenseModal()">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-50 pb-2">
@@ -234,25 +252,27 @@
             </div>
         </div>
     </div>
+
     <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeDaySchedulePopup()">
         <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
                 <h3 id="popup-schedule-date" class="text-sm font-bold text-gray-800 lowercase">schedule details</h3>
                 <button onclick="closeDaySchedulePopup()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
             </div>
-            <div id="popup-schedule-content" class="space-y-2 max-h-[260px] overflow-y-auto no-scrollbar">
-                <!-- Programmatic dynamic lists target slot -->
-            </div>
+            <div id="popup-schedule-content" class="space-y-2 max-h-[260px] overflow-y-auto no-scrollbar"></div>
         </div>
     </div>
 
     <script>
-        // --- SUPABASE CONFIGURATION ---
+        // --- SECURE PUBLIC KEYS & CONFIGURATION ---
         const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // --- DOM REFERENCE ELEMENTS ---
+        // SECURE SYSTEM INSTRUCTION ENFORCEMENT PROTOCOL FOR THE VISION PARSER
+        const GEMINI_SYSTEM_INSTRUCTION = `analyze the receipt image. output a valid json object with fields "amount" (float), "description" (lowercase text short description), and "category" (lowercase string strictly mapped to either 'food & drink', 'shopping', 'subscriptions', 'events', 'fees', 'health', or 'transport'). do not wrap the output in markdown code blocks. format output as single json object raw text layout.`;
+
+        // --- DOM REFERENCES ---
         const todoForm = document.getElementById('todo-form');
         const todoInput = document.getElementById('todo-input');
         const todoDate = document.getElementById('todo-date');
@@ -267,6 +287,11 @@
         const expressExpenseInput = document.getElementById('express-expense-input');
         const expenseLedgerList = document.getElementById('expense-ledger-list');
         const expenseVisualStats = document.getElementById('expense-visual-stats');
+        const dropZone = document.getElementById('drop-zone');
+        const dropZoneLoader = document.getElementById('drop-zone-loader');
+        const receiptFileInput = document.getElementById('receipt-file-input');
+        const duplicateToast = document.getElementById('duplicate-toast');
+        const duplicateToastMsg = document.getElementById('duplicate-toast-msg');
 
         const taskModal = document.getElementById('task-modal');
         const modalTaskId = document.getElementById('modal-task-id');
@@ -281,20 +306,17 @@
         const actualToday = new Date();
         let displayDate = new Date(); 
         
-        // Foolproof local date calculation
         const year = actualToday.getFullYear();
         const month = String(actualToday.getMonth() + 1).padStart(2, '0'); 
         const day = String(actualToday.getDate()).padStart(2, '0');
         const localizedCalendarString = `${year}-${month}-${day}`;
         
-        if (todoDate) {
-            todoDate.value = localizedCalendarString;
-        }
+        if (todoDate) todoDate.value = localizedCalendarString;
         
         let globalTodosCache = [];
         let globalExpensesCache = [];
+        let pendingDuplicatePayload = null; // Instantiated when a duplicate is flagged
         
-        // --- EXPENSE CONFIGURATION & EMOJI DICTIONARY ---
         let forceActiveCategoryHint = 'food & drink';
         const categoryMap = {
             'food & drink': { emoji: '🍔', color: 'bg-rose-200', btnId: 'cat-btn-food' },
@@ -306,7 +328,6 @@
             'transport':     { emoji: '🚌', color: 'bg-indigo-200', btnId: 'cat-btn-trans' }
         };
 
-        // Handles the interactive button state swapping visually
         window.setCategory = function(categoryName, emojiStr) {
             forceActiveCategoryHint = categoryName;
             const contextLabel = document.getElementById('active-cat-display');
@@ -361,18 +382,17 @@
             if (!match) return null;
         
             const amount = parseFloat(match[1]);
-            const description = match[2].trim();
+            const description = match[2].trim().toLowerCase();
             if (isNaN(amount)) return null;
         
-            // Compact keyword routing dictionary
             const keywords = {
-                'transport': ['bus', 'mrt', 'grab', 'taxi'],
-                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries'],
-                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping'],
-                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub'],
-                'events': ['movie', 'concert', 'ticket', 'show', 'event'],
-                'fees': ['bill', 'fine', 'bank', 'tax', 'fee'],
-                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health']
+                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit'],
+                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam'],
+                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping', 'lazada', 'amazon'],
+                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub', 'openai', 'youtube'],
+                'events': ['movie', 'concert', 'ticket', 'show', 'event', 'dialogue'],
+                'fees': ['bill', 'fine', 'bank', 'tax', 'fee', 'tuition'],
+                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health', 'watsons', 'guardian']
             };
         
             let category = forceActiveCategoryHint;
@@ -385,7 +405,7 @@
             return { amount, description, category };
         }
         
-        // --- CORE FETCH HANDLER ---
+        // --- DATA FETCH INFRASTRUCTURE ---
         async function fetchAllData() {
             const [todosRes, expensesRes] = await Promise.all([
                 supabaseClient.from('todos').select('*').order('due_date', { ascending: true }),
@@ -488,15 +508,13 @@
                 const dayExpenses = globalExpensesCache.filter(e => e.date === currentDayString);
                 const dayExpenseTotal = dayExpenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
             
-                // Color background mapping logic based on expenditures
                 let heatmapStyleClass = 'bg-gray-50/30';
                 if (dayExpenseTotal > 0 && dayExpenseTotal <= 20) heatmapStyleClass = 'background-color: #ffeff2;';
                 else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0;';
                 else if (dayExpenseTotal > 50) heatmapStyleClass = 'background-color: #fbcbf5;';
             
-                // 1. Calculate border thickness based on the number of pending tasks
                 const pendingTasksCount = dayTasks.filter(t => !t.is_completed).length;
-                let borderThicknessClass = 'border'; // default thin border
+                let borderThicknessClass = 'border'; 
                 let borderColorClass = 'border-gray-100';
             
                 if (pendingTasksCount > 0) {
@@ -506,37 +524,159 @@
                     else if (pendingTasksCount >= 3) borderThicknessClass = 'border-8';
                 }
             
-                // 2. CHANGED: Added 'aspect-square', 'items-center', and 'justify-center' 
-                // This makes the cells perfectly square and centers the content entirely.
                 dayBox.className = `p-2 rounded-xl ${borderThicknessClass} ${borderColorClass} flex flex-col items-center justify-center text-center text-xs font-medium transition-all aspect-square overflow-hidden cursor-pointer hover:scale-[1.02] ${isRealToday ? 'ring-2 ring-purple-100/50 bg-white' : ''}`;
                 if (!isRealToday && dayExpenseTotal > 0) dayBox.style = heatmapStyleClass;
                 
                 dayBox.onclick = () => showDaySchedulePopup(currentDayString, dayTasks);
-            
-                // 3. CHANGED: Clean centered layout showing just the date digit
-                dayBox.innerHTML = `
-                    <span class="text-sm ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>
-                `;
+                dayBox.innerHTML = `<span class="text-sm ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>`;
                 calendarDays.appendChild(dayBox);
             }
         }
 
-        // --- LOW FRICTION EXPENSE CONTROLLER ---
+        // --- EXPENSE HANDLERS & DUPLICITE VERIFICATION PIPELINE ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const result = parseExpenseInput(expressExpenseInput.value.trim().toLowerCase());
-            if (!result) return alert('format error. please use: "amount description" (e.g. 14.20 dinner with group)');
+            if (!result) return alert('format error. use: "amount description" (e.g. 14.20 dinner with group)');
         
             const tzOffset = actualToday.getTimezoneOffset() * 60000;
             const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
         
-            const { error } = await supabaseClient
-                .from('expenses')
-                .insert([{ date: cleanLocalDateIso, amount: result.amount, description: result.description, category: result.category }]);
-        
-            if (error) alert('failed to sync expense entry.');
-            else { expressExpenseInput.value = ''; fetchAllData(); }
+            evaluateAndLogExpense({
+                date: cleanLocalDateIso,
+                amount: result.amount,
+                description: result.description,
+                category: result.category
+            });
+            expressExpenseInput.value = '';
         });
+
+        // Smart evaluation gate checking for semantic overlaps
+        function evaluateAndLogExpense(payload) {
+            const matchHeuristic = globalExpensesCache.find(exp => {
+                const sameDate = (exp.date === payload.date);
+                const sameAmount = (Math.abs(parseFloat(exp.amount) - payload.amount) < 0.01);
+                const wordOverlap = exp.description.includes(payload.description) || payload.description.includes(exp.description);
+                return sameDate && sameAmount && wordOverlap;
+            });
+
+            if (matchHeuristic) {
+                pendingDuplicatePayload = payload;
+                duplicateToastMsg.textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) matches a logged entry.`;
+                duplicateToast.classList.remove('hidden');
+            } else {
+                executeInsertExpense(payload);
+            }
+        }
+
+        async function executeInsertExpense(payload) {
+            const { error } = await supabaseClient.from('expenses').insert([payload]);
+            if (error) console.error('Supabase write failure:', error);
+            fetchAllData();
+        }
+
+        window.forceInsertDuplicate = function() {
+            if (pendingDuplicatePayload) {
+                executeInsertExpense(pendingDuplicatePayload);
+            }
+            dismissDuplicate();
+        };
+
+        window.dismissDuplicate = function() {
+            pendingDuplicatePayload = null;
+            duplicateToast.classList.add('hidden');
+        };
+
+        // --- INTEGRATED LLM VISION AUTOMATION CONTROLLER ---
+        dropZone.addEventListener('click', () => receiptFileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-purple-400', 'bg-purple-50/10');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-purple-400', 'bg-purple-50/10');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-purple-400', 'bg-purple-50/10');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                processScreenshotAndLog(e.dataTransfer.files[0]);
+            }
+        });
+
+        window.handleFileSelect = function(event) {
+            if (event.target.files && event.target.files[0]) {
+                processScreenshotAndLog(event.target.files[0]);
+            }
+        };
+
+        // Reads files locally and pushes down execution timeline inside browser workspace
+        function processScreenshotAndLog(file) {
+            // Pull client tokens directly out of browser execution context
+            const localStoredToken = localStorage.getItem('GEMINI_API_KEY');
+            if (!localStoredToken) {
+                const enteredKey = prompt("please input your gemini api key from google ai studio to initialize vision capabilities:");
+                if (!enteredKey) return;
+                localStorage.setItem('GEMINI_API_KEY', enteredKey);
+            }
+
+            dropZoneLoader.classList.remove('hidden');
+            
+            const reader = new FileReader();
+            reader.onloadend = async function() {
+                const base64Data = reader.result.split(',')[1];
+                const mimeType = file.type;
+                
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${localStorage.getItem('GEMINI_API_KEY')}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: GEMINI_SYSTEM_INSTRUCTION },
+                                    { inlineData: { mimeType: mimeType, data: base64Data } }
+                                ]
+                            }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    dropZoneLoader.classList.add('hidden');
+
+                    if (!data.candidates || data.candidates.length === 0) {
+                        throw new Error("malformed model response structure.");
+                    }
+
+                    let jsonRawText = data.candidates[0].content.parts[0].text.trim();
+                    // Clean code fence lines if generated by the LLM
+                    if (jsonRawText.startsWith("```")) {
+                        jsonRawText = jsonRawText.replace(/^```json?/, "").replace(/```$/, "").trim();
+                    }
+
+                    const parsedResult = JSON.parse(jsonRawText);
+                    
+                    const tzOffset = actualToday.getTimezoneOffset() * 60000;
+                    const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
+
+                    evaluateAndLogExpense({
+                        date: cleanLocalDateIso,
+                        amount: parseFloat(parsedResult.amount),
+                        description: parsedResult.description.toLowerCase(),
+                        category: parsedResult.category.toLowerCase()
+                    });
+
+                } catch (err) {
+                    dropZoneLoader.classList.add('hidden');
+                    console.error('multimodal execution failure:', err);
+                    alert('failed to interpret receipt configurations. verify your api token limits.');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
 
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
@@ -551,7 +691,6 @@
             const currentViewMonth = String(displayDate.getMonth() + 1).padStart(2, '0');
             const currentTargetMonthPrefix = `${currentViewYear}-${currentViewMonth}`;
             
-            // Filter out any data that doesn't belong to the active month before looping
             globalExpensesCache.forEach(exp => {
                 if (!exp.date || !exp.date.startsWith(currentTargetMonthPrefix)) return;
                 const amt = parseFloat(exp.amount);
@@ -606,14 +745,12 @@
 
         window.deleteExpense = async function(id) {
             const confirmDelete = window.confirm("are you sure you want to delete this expense entry?");
-            if (!confirmDelete) return; // Exit if user clicks cancel
-            
+            if (!confirmDelete) return;
             const { error } = await supabaseClient.from('expenses').delete().eq('id', id);
             if (error) console.error(error);
             else fetchAllData();
         };
 
-        // Helper to grab form state as a single string
         function getModalSnapshot() {
             return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
                 .map(id => document.getElementById(id).value).join('|');
@@ -634,13 +771,11 @@
             modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
             
             taskModal.classList.remove('hidden');
-            // Store snapshot string dynamically directly on the window context
             window.originalModalSnapshotString = getModalSnapshot();
         };
         
         window.closeModal = () => taskModal.classList.add('hidden');
 
-                // --- EXPENSE MODAL UTILITIES ---
         window.openExpenseModal = function(id) {
             const expense = globalExpensesCache.find(e => e.id === id);
             if (!expense) return;
@@ -666,7 +801,7 @@
             const catVal = document.getElementById('modal-expense-category').value;
         
             if (!dateVal || isNaN(amountVal) || !descVal) {
-                return alert('all fields are required to update the expense record.');
+                return alert('all fields required.');
             }
         
             const { error } = await supabaseClient
@@ -674,13 +809,8 @@
                 .update({ date: dateVal, amount: amountVal, description: descVal, category: catVal })
                 .eq('id', id);
         
-            if (error) {
-                alert('failed to update expense record.');
-                console.error(error);
-            } else {
-                closeExpenseModal();
-                fetchAllData();
-            }
+            if (error) console.error(error);
+            else { closeExpenseModal(); fetchAllData(); }
         };
 
         window.showDaySchedulePopup = function(dateStr, dayTasks) {
@@ -689,10 +819,8 @@
             const displayListContainer = document.getElementById('popup-schedule-content');
             if (!popup || !displayListContainer) return;
         
-            // Convert date string from yyyy-mm-dd to a cleaner display layout
             const [y, m, d] = dateStr.split('-');
             if (headerTitle) headerTitle.textContent = `schedule: ${d}/${m}/${y}`;
-        
             displayListContainer.innerHTML = '';
         
             if (dayTasks.length === 0) {
@@ -704,12 +832,7 @@
                     
                     const cardBlock = document.createElement('div');
                     cardBlock.className = `p-3 rounded-xl border border-gray-100/70 flex items-center justify-between gap-3 transition-colors hover:bg-gray-50/50 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
-                    
-                    // Clicking a specific task directly inside this list popup closes this viewer window and reveals the deeper item configurations card automatically
-                    cardBlock.onclick = () => {
-                        closeDaySchedulePopup();
-                        openModal(task.id);
-                    };
+                    cardBlock.onclick = () => { closeDaySchedulePopup(); openModal(task.id); };
         
                     cardBlock.innerHTML = `
                         <div class="min-w-0 flex-1">
@@ -721,48 +844,25 @@
                     displayListContainer.appendChild(cardBlock);
                 });
             }
-            
             popup.classList.remove('hidden');
         };
         
-        window.closeDaySchedulePopup = function() {
-            const popup = document.getElementById('calendar-day-popup');
-            if (popup) popup.classList.add('hidden');
-        };
+        window.closeDaySchedulePopup = () => document.getElementById('calendar-day-popup').classList.add('hidden');
         
         window.handleModalOutsideClick = function(event) {
             if (window.originalModalSnapshotString === getModalSnapshot()) {
                 window.closeModal();
                 return;
             }
-        
             const confirmClose = window.confirm("do you want to save changes before closing?");
             if (confirmClose) window.saveModalChanges();
             else window.closeModal();
         };
         
-        // 2. DETECT INTERIOR FORM MODF_CHANGES FOR SHORTCUT CHECKING
-        function isModalFormActive() {
-            const modal = document.getElementById('task-modal');
-            return modal && !modal.classList.contains('hidden');
-        }
-        
-        // 3. KEYBOARD SHORTCUT BINDINGS ENGINE
         window.addEventListener('keydown', function(event) {
-            // Only intercept keys if the edit modal window is actively open
-            if (!isModalFormActive()) return;
-        
-            // SHORTCUT A: Escape Key -> Close Modal with Prompt
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                window.handleModalOutsideClick(event); 
-            }
-        
-            // SHORTCUT B: Control + S OR Command + S (Mac) -> Save Changes instantly
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-                event.preventDefault(); // Stop browser from trying to save the webpage file
-                window.saveModalChanges();
-            }
+            if (taskModal.classList.contains('hidden')) return;
+            if (event.key === 'Escape') { event.preventDefault(); window.handleModalOutsideClick(event); }
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); window.saveModalChanges(); }
         });
                 
         window.saveModalChanges = async function() {
@@ -793,18 +893,12 @@
         };
 
         window.changeMonth = function(direction) {
-            // 1. Safely reset the day to the 1st of the month to fix the May 31st skip bug!
             displayDate.setDate(1); 
-            
-            // 2. Safely apply the mathematical month movement direction offset
             displayDate.setMonth(displayDate.getMonth() + direction);
-            
-            // 3. Clear out the day elements grid and force a fresh calendar render step
             renderCalendarGrid();
             renderExpenses();
         };
 
-        // --- MOBILE NAVIGATION TAB LOGIC ---
         window.switchMobileTab = function(activeTab) {
             const tabs = ['timeline', 'calendar', 'expenses'];
             tabs.forEach(t => {
@@ -830,10 +924,7 @@
             if (window.innerWidth >= 768) {
                 ['calendar', 'timeline', 'expenses'].forEach(t => {
                     const sec = document.getElementById(`mobile-sec-${t}`);
-                    if (sec) {
-                        sec.classList.remove('hidden');
-                        sec.classList.add('flex');
-                    }
+                    if (sec) { sec.classList.remove('hidden'); sec.classList.add('flex'); }
                 });
             } else {
                 switchMobileTab('timeline');
@@ -842,39 +933,27 @@
 
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            // 1. Safely grab the dropdown element
             const entryTypeElement = document.getElementById('entry-type');
             const entryType = entryTypeElement ? entryTypeElement.value : 'task';
-            
             const rawInput = todoInput.value.trim().toLowerCase();
             const chosenDate = todoDate.value;
             const chosenTime = todoTime.value;
             
             if (!rawInput) return;
         
-            // Debug helper: Open your inspect console to see this route trigger live!
-            console.log(`Routing execution engine. Type: "${entryType}", Input: "${rawInput}"`);
-        
             if (entryType === 'expense') {
-            const result = parseExpenseInput(rawInput);
-            if (!result) return alert('please start with a number for expenses (e.g. 3.92 mala fries)');
-        
-            const { error } = await supabaseClient
-                .from('expenses')
-                .insert([{ date: chosenDate, amount: result.amount, description: result.description, category: result.category }]);
-        
-            if (error) {
-                alert('failed to sync expense entry.');
-                console.error('Supabase Expense Error:', error);
-            } else { 
+                const result = parseExpenseInput(rawInput);
+                if (!result) return alert('start with a number for expenses (e.g. 3.92 fries)');
+            
+                evaluateAndLogExpense({
+                    date: chosenDate,
+                    amount: result.amount,
+                    description: result.description,
+                    category: result.category
+                });
                 todoInput.value = ''; 
-                todoTime.value = ''; 
-                if (typeof fetchAllData === 'function') fetchAllData(); 
-            }
-        
+                todoTime.value = '';
             } else {
-                // --- ROUTE TO TIMELINE (Explicitly chosen task mode) ---
                 if (!chosenDate) return alert('date selection required for tasks.');
                 const compositeDeadlineString = chosenTime ? `${chosenDate} ${chosenTime}` : chosenDate;
         
@@ -882,25 +961,19 @@
                     .from('todos')
                     .insert([{ title: rawInput, is_completed: false, due_date: compositeDeadlineString, notes: '', progress: 0 }]);
         
-                if (error) {
-                    alert('failed to sync task entry.');
-                    console.error('Supabase Task Error:', error);
-                } else { 
-                    todoInput.value = ''; 
-                    todoTime.value = ''; 
-                    if (typeof fetchAllData === 'function') fetchAllData(); 
-                }
+                if (error) console.error(error);
+                else { todoInput.value = ''; todoTime.value = ''; fetchAllData(); }
             }
         });
 
         window.deleteTodo = async function(id) {
             const confirmDelete = window.confirm("are you sure you want to delete this task?");
-            if (!confirmDelete) return; // Exit if user clicks cancel
-            
+            if (!confirmDelete) return;
             await supabaseClient.from('todos').delete().eq('id', id);
             fetchAllData();
         };
 
-        // Initialize App
         fetchAllData();
     </script>
+</body>
+</html>
