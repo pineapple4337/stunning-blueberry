@@ -616,11 +616,12 @@
         // Reads files locally and pushes down execution timeline inside browser workspace
         function processScreenshotAndLog(file) {
             // Pull client tokens directly out of browser execution context
-            const localStoredToken = localStorage.getItem('GEMINI_API_KEY');
-            if (!localStoredToken) {
+            let localStoredToken = localStorage.getItem('GEMINI_API_KEY');
+            if (!localStoredToken || localStoredToken.trim() === "" || localStoredToken === "null") {
                 const enteredKey = prompt("please input your gemini api key from google ai studio to initialize vision capabilities:");
-                if (!enteredKey) return;
-                localStorage.setItem('GEMINI_API_KEY', enteredKey);
+                if (!enteredKey || enteredKey.trim() === "") return;
+                localStorage.setItem('GEMINI_API_KEY', enteredKey.trim());
+                localStoredToken = enteredKey.trim();
             }
 
             dropZoneLoader.classList.remove('hidden');
@@ -643,6 +644,18 @@
                             }]
                         })
                     });
+
+                    // CATCH EXPLICIT CREDENTIAL AUTHORIZATION FAILS (400, 403, 404, etc.)
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        const errMsg = errData.error?.message || "unauthorized API request setup";
+                        
+                        if (response.status === 400 || response.status === 403) {
+                            localStorage.removeItem('GEMINI_API_KEY'); // Scrub local data so it re-prompts
+                            throw new Error(`[api key rejected]: ${errMsg}. your stored key was cleared. refresh and try a fresh key.`);
+                        }
+                        throw new Error(`server responded with code ${response.status}: ${errMsg}`);
+                    }
 
                     const data = await response.json();
                     dropZoneLoader.classList.add('hidden');
@@ -672,7 +685,7 @@
                 } catch (err) {
                     dropZoneLoader.classList.add('hidden');
                     console.error('multimodal execution failure:', err);
-                    alert('failed to interpret receipt configurations. verify your api token limits.');
+                    alert(err.message || 'failed to interpret receipt configurations. verify your api token limits.');
                 }
             };
             reader.readAsDataURL(file);
