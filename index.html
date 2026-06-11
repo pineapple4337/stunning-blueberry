@@ -141,20 +141,26 @@
                 <hr class="border-gray-50 pt-1">
             </div>
 
-            <div class="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0">
-                <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
-                <div id="expense-visual-stats" class="space-y-2"></div>
-            </div>
+            <div id="ledger-workspace-wrapper" class="flex flex-col flex-1 min-h-0 gap-4">
+                
+                <div id="summary-card-block" class="bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0">
+                    <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
+                    <div id="expense-visual-stats" class="space-y-2"></div>
+                </div>
 
-            <div class="flex items-center justify-between mb-2 select-none shrink-0">
-                <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
-                <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer" title="toggle expanded view">
-                    <span>expand view</span> ↗
-                </button>
-            </div>
-            
-            <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0">
-                <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
+                <div class="flex flex-col flex-1 min-h-0">
+                    <div class="flex items-center justify-between mb-2 select-none shrink-0">
+                        <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
+                        <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer">
+                            <span>expand view</span> ↗
+                        </button>
+                    </div>
+                    
+                    <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0">
+                        <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -538,36 +544,46 @@
             document.getElementById('duplicate-toast').classList.add('hidden');
         };
 
-        // --- LAPTOP LEDGER FULLSCREEN & TABLE CONVERSION ENGINE ---
+        // --- LAPTOP LEDGER SIDEBAR WORKSPACE CONVERSION ENGINE ---
         window.toggleLedgerFullscreen = function() {
             const expenseSection = document.getElementById('mobile-sec-expenses');
             const calendarSection = document.getElementById('mobile-sec-calendar');
             const timelineSection = document.getElementById('mobile-sec-timeline');
             const inputArea = document.getElementById('ledger-input-area');
+            const workspaceWrapper = document.getElementById('ledger-workspace-wrapper');
+            const summaryBlock = document.getElementById('summary-card-block');
             const zoomBtn = document.getElementById('ledger-zoom-btn');
             
             const isExpanded = expenseSection.classList.contains('md:flex-1');
             
             if (!isExpanded) {
+                // 1. Hide companion workspace modules
                 calendarSection.classList.replace('md:flex', 'md:hidden');
                 timelineSection.classList.replace('flex', 'md:hidden');
-                
-                // Hide inputs cleanly using the new container ID
                 if (inputArea) inputArea.classList.add('hidden');
                 
+                // 2. Expand card context panel across the layout framework
                 expenseSection.classList.replace('md:w-96', 'md:flex-1');
                 expenseSection.classList.add('md:max-h-[85vh]');
                 
+                // 3. Shift ledger layout container to standard horizontal dual columns
+                workspaceWrapper.classList.replace('flex-col', 'flex-row');
+                summaryBlock.className = "w-64 bg-gray-50/50 p-4 rounded-xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
+                
                 zoomBtn.innerHTML = '<span>collapse view</span> ↙';
             } else {
+                // 1. Restore panels safely back to system flow
                 calendarSection.classList.replace('md:hidden', 'md:flex');
                 timelineSection.classList.replace('md:hidden', 'flex');
-                
-                // Restore inputs safely
                 if (inputArea) inputArea.classList.remove('hidden');
                 
+                // 2. Clear out panel width guidelines
                 expenseSection.classList.replace('md:flex-1', 'md:w-96');
                 expenseSection.classList.remove('md:max-h-[85vh]');
+                
+                // 3. Reset ledger layout back into a single vertical stream
+                workspaceWrapper.classList.replace('flex-row', 'flex-col');
+                summaryBlock.className = "bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0";
                 
                 zoomBtn.innerHTML = '<span>expand view</span> ↗';
             }
@@ -579,7 +595,7 @@
             }
         };
 
-        // --- RENDER PIPELINE: GENERATES SIDEBAR CARDS OR FULL DATA TABLES ---
+        // --- RENDER PIPELINE: GENERATES SIDEBAR TRANSITIONS OR FULL WIDTH TABLES ---
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
             expenseLedgerList.innerHTML = '';
@@ -607,12 +623,15 @@
 
                 const block = document.createElement('div');
                 block.innerHTML = `
-                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5 items-center">
-                        <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
-                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(pct)}%)</span></span>
-                    </div>
-                    <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
-                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    <div class="flex flex-col gap-0.5 lowercase text-xs mb-2">
+                        <div class="flex justify-between font-medium text-gray-600 items-center">
+                            <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
+                            <span class="font-bold text-gray-500">$${categorySum.toFixed(2)}</span>
+                        </div>
+                        <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
+                            <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="text-[10px] text-gray-400 text-right font-normal leading-none mt-0.5">${Math.round(pct)}% of total</div>
                     </div>
                 `;
                 expenseVisualStats.appendChild(block);
@@ -623,12 +642,12 @@
 
             if (isExpandedMode) {
                 const tableContainer = document.createElement('div');
-                tableContainer.className = "w-full overflow-x-auto border border-gray-100 rounded-xl bg-white mt-2";
+                tableContainer.className = "w-full h-full overflow-y-auto no-scrollbar border border-gray-100 rounded-xl bg-white";
                 
                 let tableHtml = `
-                    <table class="w-full text-left border-collapse text-xs lowercase">
+                    <table class="w-full text-left border-collapse text-xs lowercase relative">
                         <thead>
-                            <tr class="bg-gray-50 border-b border-gray-100 font-bold text-gray-400">
+                            <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 z-10">
                                 <th class="p-3 w-24">date</th>
                                 <th class="p-3 w-36">category</th>
                                 <th class="p-3">description</th>
@@ -696,7 +715,7 @@
                 });
             }
         }
-
+        
         window.deleteExpense = async function(id) {
             if (!window.confirm("delete this expense?")) return;
             await supabaseClient.from('expenses').delete().eq('id', id);
