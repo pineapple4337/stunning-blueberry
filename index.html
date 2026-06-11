@@ -455,58 +455,54 @@
             }
         }
 
-        // --- INTELLIGENT PARSER PIPELINE ---
+        // --- HIGH-PRECISION PIPELINE PARSER FOR PIPE SEPARATORS ---
         function parseExpenseInput(rawVal) {
-            const cleanText = rawVal.trim().toLowerCase();
-            const numberMatch = cleanText.match(/\d+(\.\d{1,2})?/);
-            if (!numberMatch) return null;
-            const amount = parseFloat(numberMatch[0]);
+            const cleanLine = rawVal.trim().toLowerCase();
             
-            let description = cleanText
-                .replace(numberMatch[0], '')
-                .replace(/[$¢€£]/g, '')
-                .replace(/\b(logged|spent|bought|at|for|total|items|amount|price|cost|the|a|on|receipt|transaction|value)\b/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-                
-            if (!description) description = "pasted expense";
-
-            const keywords = {
-                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit', 'train'],
-                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam', 'iced', 'americano', 'coffee', 'dining'],
-                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping', 'lazada', 'amazon'],
-                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub', 'openai', 'youtube'],
-                'events': ['movie', 'concert', 'ticket', 'show', 'event', 'dialogue'],
-                'fees': ['bill', 'fine', 'bank', 'tax', 'fee', 'tuition'],
-                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health', 'watsons', 'guardian']
-            };
-
-            let category = forceActiveCategoryHint;
-            for (const [cat, words] of Object.entries(keywords)) {
-                if (words.some(word => description.includes(word))) {
-                    category = cat;
-                    break;
-                }
-            }
-            return { amount, description, category };
+            // Verify that the line contains our custom pipe separators
+            if (!cleanLine.includes('|')) return null;
+            
+            // Split the line into parts: [date, amount, category, description]
+            const parts = cleanLine.split('|').map(p => p.trim());
+            if (parts.length < 4) return null;
+            
+            const date = parts[0]; // e.g., "2026-06-11"
+            const amount = parseFloat(parts[1]); // e.g., 14.50
+            const category = parts[2]; // e.g., "shopping"
+            let description = parts[3]; // e.g., "muji items"
+            
+            if (isNaN(amount)) return null;
+            if (!description) description = "pasted transaction";
+            
+            return { date, amount, description, category };
         }
 
+        // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const result = parseExpenseInput(expressExpenseInput.value);
+            const rawClipboardContent = expressExpenseInput.value;
             
-            if (!result) return alert('could not isolate a cost. include a number value (e.g. 14.50 muji)');
+            const lines = rawClipboardContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let processedCount = 0;
 
-            const tzOffset = actualToday.getTimezoneOffset() * 60000;
-            const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
+            for (const line of lines) {
+                const result = parseExpenseInput(line);
+                if (result) {
+                    evaluateAndLogExpense({
+                        date: result.date, // Uses the exact transaction date picked up by Gemini
+                        amount: result.amount,
+                        description: result.description,
+                        category: result.category
+                    });
+                    processedCount++;
+                }
+            }
 
-            evaluateAndLogExpense({
-                date: cleanLocalDateIso,
-                amount: result.amount,
-                description: result.description,
-                category: result.category
-            });
-            expressExpenseInput.value = '';
+            if (processedCount === 0) {
+                alert('could not isolate any transaction details. check formatting syntax.');
+            }
+            
+            expressExpenseInput.value = ''; 
         });
 
         function evaluateAndLogExpense(payload) {
