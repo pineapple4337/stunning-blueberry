@@ -112,7 +112,7 @@
         </section>
 
         <section id="mobile-sec-expenses" class="hidden md:flex w-full md:w-96 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-4 shrink-0">
                 <h2 class="text-lg font-bold text-gray-800 lowercase">expenses</h2>
                 <div class="flex gap-1">
                     <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
@@ -120,13 +120,13 @@
                 </div>
             </div>
             
-            <div class="mb-4 space-y-2">
+            <div id="ledger-input-area" class="mb-4 space-y-2 shrink-0">
                 <form id="express-expense-form" class="flex flex-col gap-2">
                     <textarea id="express-expense-input" rows="2" placeholder="paste raw text or chat parameters from gemini here..." required class="w-full px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-300"></textarea>
                     <button type="submit" class="w-full py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">clean & log entry</button>
                 </form>
                 
-                <div class="mt-2">
+                <div id="ledger-category-selection-bar" class="mt-2">
                     <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
                     <div class="grid grid-cols-7 gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                         <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drink">🍔</button>
@@ -138,16 +138,15 @@
                         <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="transport">🚌</button>
                     </div>
                 </div>
+                <hr class="border-gray-50 pt-1">
             </div>
 
-            <hr class="border-gray-50 mb-3">
-
-            <div class="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+            <div class="mb-4 bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0">
                 <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
                 <div id="expense-visual-stats" class="space-y-2"></div>
             </div>
 
-            <div class="flex items-center justify-between mb-2 select-none">
+            <div class="flex items-center justify-between mb-2 select-none shrink-0">
                 <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
                 <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer" title="toggle expanded view">
                     <span>expand view</span> ↗
@@ -465,17 +464,15 @@
         function parseExpenseInput(rawVal) {
             const cleanLine = rawVal.trim().toLowerCase();
             
-            // Verify that the line contains our custom pipe separators
             if (!cleanLine.includes('|')) return null;
             
-            // Split the line into parts: [date, amount, category, description]
             const parts = cleanLine.split('|').map(p => p.trim());
             if (parts.length < 4) return null;
             
-            const date = parts[0];               // e.g., "2026-06-11"
-            const amount = parseFloat(parts[1]); // e.g., 14.50
-            const category = parts[2];           // e.g., "shopping"
-            let description = parts[3];          // e.g., "muji items"
+            const date = parts[0];               
+            const amount = parseFloat(parts[1]); 
+            const category = parts[2];           
+            let description = parts[3];          
             
             if (isNaN(amount)) return null;
             if (!description) description = "pasted transaction";
@@ -484,12 +481,9 @@
         }
 
         // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
-        // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const rawClipboardContent = expressExpenseInput.value;
-            
-            // Break down the pasted chunk into clean, non-empty text lines
             const lines = rawClipboardContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             let processedCount = 0;
 
@@ -497,9 +491,9 @@
                 const result = parseExpenseInput(line);
                 if (result) {
                     evaluateAndLogExpense({
-                        date: result.date,             // Uses the exact transaction date picked up by Gemini
+                        date: result.date,             
                         amount: result.amount,
-                        description: result.description.toLowerCase(), // Everything lower case forced
+                        description: result.description.toLowerCase(), 
                         category: result.category
                     });
                     processedCount++;
@@ -509,7 +503,6 @@
             if (processedCount === 0) {
                 alert('could not isolate any transaction details. check formatting syntax.');
             }
-            
             expressExpenseInput.value = ''; 
         });
 
@@ -550,43 +543,35 @@
             const expenseSection = document.getElementById('mobile-sec-expenses');
             const calendarSection = document.getElementById('mobile-sec-calendar');
             const timelineSection = document.getElementById('mobile-sec-timeline');
-            const expressForm = document.getElementById('express-expense-form');
-            const categoryBar = expressForm.nextElementSibling; // Targets the category selectors
+            const inputArea = document.getElementById('ledger-input-area');
             const zoomBtn = document.getElementById('ledger-zoom-btn');
             
             const isExpanded = expenseSection.classList.contains('md:flex-1');
             
             if (!isExpanded) {
-                // 1. Hide companion panels completely
                 calendarSection.classList.replace('md:flex', 'md:hidden');
                 timelineSection.classList.replace('flex', 'md:hidden');
                 
-                // 2. Hide the input fields and textareas entirely
-                expressForm.classList.add('hidden');
-                if (categoryBar) categoryBar.classList.add('hidden');
+                // Hide inputs cleanly using the new container ID
+                if (inputArea) inputArea.classList.add('hidden');
                 
-                // 3. Stretch the main card container to take the full width of the screen
                 expenseSection.classList.replace('md:w-96', 'md:flex-1');
                 expenseSection.classList.add('md:max-h-[85vh]');
                 
                 zoomBtn.innerHTML = '<span>collapse view</span> ↙';
             } else {
-                // 1. Restore panels back to default sidebar positions
                 calendarSection.classList.replace('md:hidden', 'md:flex');
                 timelineSection.classList.replace('md:hidden', 'flex');
                 
-                // 2. Bring back input panels safely
-                expressForm.classList.remove('hidden');
-                if (categoryBar) categoryBar.classList.remove('hidden');
+                // Restore inputs safely
+                if (inputArea) inputArea.classList.remove('hidden');
                 
-                // 3. Snap the width guidelines back to standard sidebar widths
                 expenseSection.classList.replace('md:flex-1', 'md:w-96');
                 expenseSection.classList.remove('md:max-h-[85vh]');
                 
                 zoomBtn.innerHTML = '<span>expand view</span> ↗';
             }
             
-            // Re-render the list immediately so it can adapt to the new full-screen layout rules
             renderExpenses();
             
             if (typeof renderCalendarGrid === 'function') {
@@ -605,8 +590,6 @@
             let totalCombinedAll = 0;
 
             const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
-            
-            // Isolate transactions matching the current viewing month
             const activeExpenses = globalExpensesCache.filter(exp => exp.date && exp.date.startsWith(prefix));
             
             activeExpenses.forEach(exp => {
@@ -615,7 +598,6 @@
                 if (totals[exp.category] !== undefined) totals[exp.category] += amt;
             });
 
-            // Render top bar graphs/tallies
             Object.keys(totals).forEach(cat => {
                 const categorySum = totals[cat];
                 if (categorySum === 0) return;
@@ -640,7 +622,6 @@
             const isExpandedMode = expenseSection && expenseSection.classList.contains('md:flex-1');
 
             if (isExpandedMode) {
-                // RENDER FULL DATA TABLE LAYOUT
                 const tableContainer = document.createElement('div');
                 tableContainer.className = "w-full overflow-x-auto border border-gray-100 rounded-xl bg-white mt-2";
                 
@@ -690,7 +671,6 @@
                 expenseLedgerList.appendChild(tableContainer);
                 
             } else {
-                // RENDER ORIGINAL SIDEBAR CARD FLOW
                 activeExpenses.forEach(exp => {
                     const amt = parseFloat(exp.amount);
                     const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
@@ -715,27 +695,6 @@
                     expenseLedgerList.appendChild(li);
                 });
             }
-        }
-
-            Object.keys(totals).forEach(cat => {
-                const categorySum = totals[cat];
-                if (categorySum === 0) return;
-                
-                const pct = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
-                const meta = categoryMap[cat];
-
-                const block = document.createElement('div');
-                block.innerHTML = `
-                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5 items-center">
-                        <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
-                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(pct)}%)</span></span>
-                    </div>
-                    <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
-                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                    </div>
-                `;
-                expenseVisualStats.appendChild(block);
-            });
         }
 
         window.deleteExpense = async function(id) {
