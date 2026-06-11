@@ -149,11 +149,12 @@
 
             <div class="flex items-center justify-between mb-2 select-none">
                 <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
-                <button onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer" title="toggle expanded view">
+                <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer" title="toggle expanded view">
                     <span>expand view</span> ↗
                 </button>
             </div>
-            <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0 h-48 md:h-auto">
+            
+            <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0">
                 <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
             </div>
         </section>
@@ -346,51 +347,6 @@
             if (differenceInDays < 0) return '⚠️ overdue';
             return `📌 ${differenceInDays} days left`;
         }
-
-        // --- LAPTOP LEDGER FULLSCREEN/FOCUS MODE TOGGLER ---
-        window.toggleLedgerFullscreen = function() {
-            const expenseSection = document.getElementById('mobile-sec-expenses');
-            const calendarSection = document.getElementById('mobile-sec-calendar');
-            const timelineSection = document.getElementById('mobile-sec-timeline');
-            const scrollContainer = document.getElementById('ledger-scroll-container');
-            const zoomBtn = document.getElementById('ledger-zoom-btn');
-            
-            // Check if it's currently expanded by looking for our custom width override
-            const isExpanded = expenseSection.classList.contains('md:flex-1');
-            
-            if (!isExpanded) {
-                // Collapse Calendar and Timeline smoothly to give ledger total center stage
-                calendarSection.classList.replace('md:flex', 'md:hidden');
-                timelineSection.classList.replace('flex', 'md:hidden');
-                
-                // Expand the Expense card to take up all available horizontal real estate
-                expenseSection.classList.replace('md:w-96', 'md:flex-1');
-                
-                // FORCE the scrolling box wrapper container to use up to 70% of the viewport vertical height
-                scrollContainer.classList.add('md:max-h-[70vh]', 'md:min-h-[60vh]');
-                
-                // Change the button text
-                zoomBtn.innerHTML = '<span>collapse view</span> ↙';
-            } else {
-                // Restore Calendar and Timeline panels back to view frame
-                calendarSection.classList.replace('md:hidden', 'md:flex');
-                timelineSection.classList.replace('md:hidden', 'flex');
-                
-                // Snap back the expense pane container to its structural base layout width
-                expenseSection.classList.replace('md:flex-1', 'md:w-96');
-                
-                // Strip away the tall vertical screen rules so it fits nicely back into the sidebar
-                scrollContainer.classList.remove('md:max-h-[70vh]', 'md:min-h-[60vh]');
-                
-                // Reset the button text
-                zoomBtn.innerHTML = '<span>expand view</span> ↗';
-            }
-            
-            // Trigger calendar redraw to ensure structural cell ratios match new width container dimensions
-            if (typeof renderCalendarGrid === 'function') {
-                renderCalendarGrid();
-            }
-        };
         
         // --- FETCH ENGINE ---
         async function fetchAllData() {
@@ -589,6 +545,56 @@
             document.getElementById('duplicate-toast').classList.add('hidden');
         };
 
+        // --- LAPTOP LEDGER FULLSCREEN & TABLE CONVERSION ENGINE ---
+        window.toggleLedgerFullscreen = function() {
+            const expenseSection = document.getElementById('mobile-sec-expenses');
+            const calendarSection = document.getElementById('mobile-sec-calendar');
+            const timelineSection = document.getElementById('mobile-sec-timeline');
+            const expressForm = document.getElementById('express-expense-form');
+            const categoryBar = expressForm.nextElementSibling; // Targets the category selectors
+            const zoomBtn = document.getElementById('ledger-zoom-btn');
+            
+            const isExpanded = expenseSection.classList.contains('md:flex-1');
+            
+            if (!isExpanded) {
+                // 1. Hide companion panels completely
+                calendarSection.classList.replace('md:flex', 'md:hidden');
+                timelineSection.classList.replace('flex', 'md:hidden');
+                
+                // 2. Hide the input fields and textareas entirely
+                expressForm.classList.add('hidden');
+                if (categoryBar) categoryBar.classList.add('hidden');
+                
+                // 3. Stretch the main card container to take the full width of the screen
+                expenseSection.classList.replace('md:w-96', 'md:flex-1');
+                expenseSection.classList.add('md:max-h-[85vh]');
+                
+                zoomBtn.innerHTML = '<span>collapse view</span> ↙';
+            } else {
+                // 1. Restore panels back to default sidebar positions
+                calendarSection.classList.replace('md:hidden', 'md:flex');
+                timelineSection.classList.replace('md:hidden', 'flex');
+                
+                // 2. Bring back input panels safely
+                expressForm.classList.remove('hidden');
+                if (categoryBar) categoryBar.classList.remove('hidden');
+                
+                // 3. Snap the width guidelines back to standard sidebar widths
+                expenseSection.classList.replace('md:flex-1', 'md:w-96');
+                expenseSection.classList.remove('md:max-h-[85vh]');
+                
+                zoomBtn.innerHTML = '<span>expand view</span> ↗';
+            }
+            
+            // Re-render the list immediately so it can adapt to the new full-screen layout rules
+            renderExpenses();
+            
+            if (typeof renderCalendarGrid === 'function') {
+                renderCalendarGrid();
+            }
+        };
+
+        // --- RENDER PIPELINE: GENERATES SIDEBAR CARDS OR FULL DATA TABLES ---
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
             expenseLedgerList.innerHTML = '';
@@ -600,34 +606,116 @@
 
             const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
             
-            globalExpensesCache.forEach(exp => {
-                if (!exp.date || !exp.date.startsWith(prefix)) return;
+            // Isolate transactions matching the current viewing month
+            const activeExpenses = globalExpensesCache.filter(exp => exp.date && exp.date.startsWith(prefix));
+            
+            activeExpenses.forEach(exp => {
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
-                
                 if (totals[exp.category] !== undefined) totals[exp.category] += amt;
-                
-                const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
-                const [y, m, d] = exp.date.split('-');
+            });
 
-                const li = document.createElement('li');
-                li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase cursor-pointer hover:bg-gray-50 transition-colors";
-                li.onclick = () => openExpenseModal(exp.id);
-                li.innerHTML = `
-                    <div class="min-w-0 flex-1 flex items-center gap-2.5">
-                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
-                        <div class="min-w-0 flex-1">
-                            <div class="font-semibold text-gray-700 truncate leading-tight">${exp.description}</div>
-                            <div class="text-[10px] text-gray-400 mt-0.5">${d}/${m}/${y}</div>
-                        </div>
+            // Render top bar graphs/tallies
+            Object.keys(totals).forEach(cat => {
+                const categorySum = totals[cat];
+                if (categorySum === 0) return;
+                
+                const pct = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
+                const meta = categoryMap[cat];
+
+                const block = document.createElement('div');
+                block.innerHTML = `
+                    <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5 items-center">
+                        <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
+                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(pct)}%)</span></span>
                     </div>
-                    <div class="flex items-center gap-1 ml-2 shrink-0">
-                        <span class="font-bold text-gray-600 mr-1">-$${amt.toFixed(2)}</span>
-                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 font-bold text-sm transition-colors cursor-pointer -my-3 -mr-2 p-3.5 touch-manipulation">✕</button>
+                    <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
+                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
                     </div>
                 `;
-                expenseLedgerList.appendChild(li);
+                expenseVisualStats.appendChild(block);
             });
+
+            const expenseSection = document.getElementById('mobile-sec-expenses');
+            const isExpandedMode = expenseSection && expenseSection.classList.contains('md:flex-1');
+
+            if (isExpandedMode) {
+                // RENDER FULL DATA TABLE LAYOUT
+                const tableContainer = document.createElement('div');
+                tableContainer.className = "w-full overflow-x-auto border border-gray-100 rounded-xl bg-white mt-2";
+                
+                let tableHtml = `
+                    <table class="w-full text-left border-collapse text-xs lowercase">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-100 font-bold text-gray-400">
+                                <th class="p-3 w-24">date</th>
+                                <th class="p-3 w-36">category</th>
+                                <th class="p-3">description</th>
+                                <th class="p-3 w-28 text-right pr-6">amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50 font-medium text-gray-600">
+                `;
+
+                activeExpenses.forEach(exp => {
+                    const amt = parseFloat(exp.amount);
+                    const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+                    const [y, m, d] = exp.date.split('-');
+                    
+                    tableHtml += `
+                        <tr class="hover:bg-gray-50/80 transition-colors group">
+                            <td class="p-3 text-gray-400 font-mono">${d}/${m}/${y}</td>
+                            <td class="p-3">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${meta.color} bg-opacity-70 text-[11px]">
+                                    <span>${meta.emoji}</span> ${exp.category}
+                                </span>
+                            </td>
+                            <td class="p-3 font-semibold text-gray-700">${exp.description}</td>
+                            <td class="p-3 text-right pr-4 font-bold text-gray-800">
+                                <div class="flex items-center justify-end gap-2">
+                                    <span>-$${amt.toFixed(2)}</span>
+                                    <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 hover:text-rose-400 font-bold p-1 cursor-pointer touch-manipulation text-sm transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                if (activeExpenses.length === 0) {
+                    tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no logged expenses this month</td></tr>`;
+                }
+
+                tableHtml += `</tbody></table>`;
+                tableContainer.innerHTML = tableHtml;
+                expenseLedgerList.appendChild(tableContainer);
+                
+            } else {
+                // RENDER ORIGINAL SIDEBAR CARD FLOW
+                activeExpenses.forEach(exp => {
+                    const amt = parseFloat(exp.amount);
+                    const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+                    const [y, m, d] = exp.date.split('-');
+
+                    const li = document.createElement('li');
+                    li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase cursor-pointer hover:bg-gray-50 transition-colors";
+                    li.onclick = () => openExpenseModal(exp.id);
+                    li.innerHTML = `
+                        <div class="min-w-0 flex-1 flex items-center gap-2.5">
+                            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-semibold text-gray-700 truncate leading-tight">${exp.description}</div>
+                                <div class="text-[10px] text-gray-400 mt-0.5">${d}/${m}/${y}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 ml-2 shrink-0">
+                            <span class="font-bold text-gray-600 mr-1">-$${amt.toFixed(2)}</span>
+                            <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 font-bold text-sm transition-colors cursor-pointer -my-3 -mr-2 p-3.5 touch-manipulation">✕</button>
+                        </div>
+                    `;
+                    expenseLedgerList.appendChild(li);
+                });
+            }
+        }
 
             Object.keys(totals).forEach(cat => {
                 const categorySum = totals[cat];
