@@ -153,7 +153,7 @@
                     <span>expand view</span> ↗
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto no-scrollbar min-h-0">
+            <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0 h-48 md:h-auto">
                 <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
             </div>
         </section>
@@ -352,6 +352,7 @@
             const expenseSection = document.getElementById('mobile-sec-expenses');
             const calendarSection = document.getElementById('mobile-sec-calendar');
             const timelineSection = document.getElementById('mobile-sec-timeline');
+            const scrollContainer = document.getElementById('ledger-scroll-container');
             const zoomBtn = document.getElementById('ledger-zoom-btn');
             
             // Check if it's currently expanded by looking for our custom width override
@@ -365,6 +366,9 @@
                 // Expand the Expense card to take up all available horizontal real estate
                 expenseSection.classList.replace('md:w-96', 'md:flex-1');
                 
+                // FORCE the scrolling box wrapper container to use up to 70% of the viewport vertical height
+                scrollContainer.classList.add('md:max-h-[70vh]', 'md:min-h-[60vh]');
+                
                 // Change the button text
                 zoomBtn.innerHTML = '<span>collapse view</span> ↙';
             } else {
@@ -374,6 +378,9 @@
                 
                 // Snap back the expense pane container to its structural base layout width
                 expenseSection.classList.replace('md:flex-1', 'md:w-96');
+                
+                // Strip away the tall vertical screen rules so it fits nicely back into the sidebar
+                scrollContainer.classList.remove('md:max-h-[70vh]', 'md:min-h-[60vh]');
                 
                 // Reset the button text
                 zoomBtn.innerHTML = '<span>expand view</span> ↗';
