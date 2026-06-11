@@ -466,10 +466,10 @@
             const parts = cleanLine.split('|').map(p => p.trim());
             if (parts.length < 4) return null;
             
-            const date = parts[0]; // e.g., "2026-06-11"
+            const date = parts[0];               // e.g., "2026-06-11"
             const amount = parseFloat(parts[1]); // e.g., 14.50
-            const category = parts[2]; // e.g., "shopping"
-            let description = parts[3]; // e.g., "muji items"
+            const category = parts[2];           // e.g., "shopping"
+            let description = parts[3];          // e.g., "muji items"
             
             if (isNaN(amount)) return null;
             if (!description) description = "pasted transaction";
@@ -478,10 +478,12 @@
         }
 
         // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
+        // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const rawClipboardContent = expressExpenseInput.value;
             
+            // Break down the pasted chunk into clean, non-empty text lines
             const lines = rawClipboardContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             let processedCount = 0;
 
@@ -489,9 +491,9 @@
                 const result = parseExpenseInput(line);
                 if (result) {
                     evaluateAndLogExpense({
-                        date: result.date, // Uses the exact transaction date picked up by Gemini
+                        date: result.date,             // Uses the exact transaction date picked up by Gemini
                         amount: result.amount,
-                        description: result.description,
+                        description: result.description.toLowerCase(), // Everything lower case forced
                         category: result.category
                     });
                     processedCount++;
