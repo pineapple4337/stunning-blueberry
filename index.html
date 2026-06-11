@@ -35,6 +35,7 @@
     </style>
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans relative">
+
     <div id="duplicate-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all">
         <div class="flex items-start gap-3">
             <span class="text-xl">⚠️</span>
@@ -121,7 +122,7 @@
             
             <div class="mb-4 space-y-2">
                 <form id="express-expense-form" class="flex flex-col gap-2">
-                    <textarea id="express-expense-input" rows="2" placeholder="paste raw output or text from gemini here..." required class="w-full px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-300"></textarea>
+                    <textarea id="express-expense-input" rows="2" placeholder="paste raw text or chat parameters from gemini here..." required class="w-full px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-300"></textarea>
                     <button type="submit" class="w-full py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">clean & log entry</button>
                 </form>
                 
@@ -250,14 +251,12 @@
     </div>
 
     <script>
-        // --- SECURE PUBLIC KEYS & CONFIGURATION ---
+        // --- BASE CONNECTIONS ---
         const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        let pendingDuplicatePayload = null; // Staging container for duplicate validation gate
 
-        // --- DOM REFERENCES ---
+        // --- DOM REFERENCE HOOKS ---
         const todoForm = document.getElementById('todo-form');
         const todoInput = document.getElementById('todo-input');
         const todoDate = document.getElementById('todo-date');
@@ -272,11 +271,6 @@
         const expressExpenseInput = document.getElementById('express-expense-input');
         const expenseLedgerList = document.getElementById('expense-ledger-list');
         const expenseVisualStats = document.getElementById('expense-visual-stats');
-        const dropZone = document.getElementById('drop-zone');
-        const dropZoneLoader = document.getElementById('drop-zone-loader');
-        const receiptFileInput = document.getElementById('receipt-file-input');
-        const duplicateToast = document.getElementById('duplicate-toast');
-        const duplicateToastMsg = document.getElementById('duplicate-toast-msg');
 
         const taskModal = document.getElementById('task-modal');
         const modalTaskId = document.getElementById('modal-task-id');
@@ -294,13 +288,11 @@
         const year = actualToday.getFullYear();
         const month = String(actualToday.getMonth() + 1).padStart(2, '0'); 
         const day = String(actualToday.getDate()).padStart(2, '0');
-        const localizedCalendarString = `${year}-${month}-${day}`;
-        
-        if (todoDate) todoDate.value = localizedCalendarString;
+        todoDate.value = `${year}-${month}-${day}`;
         
         let globalTodosCache = [];
         let globalExpensesCache = [];
-        let pendingDuplicatePayload = null; // Instantiated when a duplicate is flagged
+        let pendingDuplicatePayload = null; 
         
         let forceActiveCategoryHint = 'food & drink';
         const categoryMap = {
@@ -339,100 +331,38 @@
         function getCountdownText(dueDateStr) {
             if (!dueDateStr) return '';
             const parts = dueDateStr.split(' ');
-            const datePart = parts[0];
-            const timePart = parts[1];
-            const [year, month, day] = datePart.split('-').map(num => parseInt(num));
-            const targetDateClean = new Date(year, month - 1, day);
+            const [y, m, d] = parts[0].split('-').map(num => parseInt(num));
+            const targetDateClean = new Date(y, m - 1, d);
             const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
             const differenceInDays = Math.ceil((targetDateClean.getTime() - todayClean.getTime()) / (1000 * 3600 * 24));
             
-            if ((differenceInDays === 0 || differenceInDays === 1) && timePart) {
-                const [hours, minutes] = timePart.split(':').map(num => parseInt(num));
-                const preciseTarget = new Date(year, month - 1, day, hours, minutes).getTime();
-                const nowTimestamp = new Date().getTime();
-                const msLeft = preciseTarget - nowTimestamp;
-                const hoursLeft = Math.floor(msLeft / (1000 * 60 * 60));
-                if (msLeft < 0) return '⚠️ overdue';
-                if (hoursLeft === 0) return `⏳ in ${Math.floor(msLeft / (1000 * 60))} mins`;
-                return `⏳ in ${hoursLeft} hrs`;
-            }
             if (differenceInDays === 0) return '📍 today';
             if (differenceInDays === 1) return '⏳ tomorrow';
             if (differenceInDays < 0) return '⚠️ overdue';
             return `📌 ${differenceInDays} days left`;
         }
 
-        // --- UPGRADED INTELLIGENT EXPRESS TEXT CLEANER & PARSER ---
-        function parseExpenseInput(rawVal) {
-            // Convert to lowercase and sanitize extra spacing
-            const cleanText = rawVal.trim().toLowerCase();
-            
-            // Extract any decimal or integer number from anywhere in the text string
-            const numberMatch = cleanText.match(/\d+(\.\d{1,2})?/);
-            if (!numberMatch) return null;
-            
-            const amount = parseFloat(numberMatch[0]);
-            
-            // Scrub out the currency signs, numbers, and common robotic filler words
-            let description = cleanText
-                .replace(numberMatch[0], '') // Remove the price number
-                .replace(/[$¢€£]/g, '')     // Strip common currency characters
-                .replace(/\b(logged|spent|bought|at|for|total|items|amount|price|cost|the|a|on)\b/g, '') // Remove fluff words
-                .replace(/\s+/g, ' ')       // Clean up consecutive whitespace
-                .trim();
-                
-            if (!description) description = "express expense";
-
-            // Smart routing keyword table matching your strict lowercase categories
-            const keywords = {
-                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit', 'train'],
-                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam', 'iced', 'americano', 'coffee'],
-                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping', 'lazada', 'amazon'],
-                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub', 'openai', 'youtube'],
-                'events': ['movie', 'concert', 'ticket', 'show', 'event', 'dialogue'],
-                'fees': ['bill', 'fine', 'bank', 'tax', 'fee', 'tuition'],
-                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health', 'watsons', 'guardian']
-            };
-
-            let category = forceActiveCategoryHint; // Fallback to current selection indicator
-            for (const [cat, words] of Object.entries(keywords)) {
-                if (words.some(word => description.includes(word))) {
-                    category = cat;
-                    break;
-                }
-            }
-            
-            return { amount, description, category };
-        }
-        
-        // --- DATA FETCH INFRASTRUCTURE ---
+        // --- FETCH ENGINE ---
         async function fetchAllData() {
-            const [todosRes, expensesRes] = await Promise.all([
-                supabaseClient.from('todos').select('*').order('due_date', { ascending: true }),
-                supabaseClient.from('expenses').select('*').order('date', { ascending: false })
-            ]);
+            try {
+                const [todosRes, expensesRes] = await Promise.all([
+                    supabaseClient.from('todos').select('*').order('due_date', { ascending: true }),
+                    supabaseClient.from('expenses').select('*').order('date', { ascending: false })
+                ]);
 
-            if (todosRes.error) console.error('Error reading todos:', todosRes.error);
-            if (expensesRes.error) console.error('Error reading expenses:', expensesRes.error);
+                globalTodosCache = todosRes.data || [];
+                globalExpensesCache = expensesRes.data || [];
 
-            globalTodosCache = todosRes.data || [];
-            globalExpensesCache = expensesRes.data || [];
+                globalTodosCache.sort((a, b) => {
+                    if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
+                    return (a.due_date || '').localeCompare(b.due_date || '');
+                });
 
-            globalTodosCache.sort((a, b) => {
-                if (a.is_completed !== b.is_completed) return a.is_completed ? 1 : -1;
-                const dA = a.due_date ? a.due_date.split(' ')[0] : '';
-                const dB = b.due_date ? b.due_date.split(' ')[0] : '';
-                if (dA !== dB) return dA.localeCompare(dB);
-                const tA = a.due_date ? a.due_date.split(' ')[1] : undefined;
-                const tB = b.due_date ? b.due_date.split(' ')[1] : undefined;
-                if (tA && !tB) return -1;
-                if (!tA && tB) return 1;
-                if (tA && tB) return tA.localeCompare(tB);
-                return 0;
-            });
-
-            renderDashboard();
-            renderExpenses();
+                renderDashboard();
+                renderExpenses();
+            } catch (err) {
+                console.error("Critical database fetch failure:", err);
+            }
         }
 
         function renderDashboard() {
@@ -450,11 +380,8 @@
                 const displayTime = parts[1] ? format12Hour(parts[1]) : '';
                 const isDone = todo.is_completed;
                 const countdown = isDone ? '✅ done' : getCountdownText(todo.due_date);
-                const hasNotes = todo.notes && todo.notes.trim() !== '';
-                const progressPct = todo.progress || (isDone ? 100 : 0);
 
                 const li = document.createElement('li');
-                li.id = `task-card-${todo.id}`;
                 li.className = `flex gap-3 items-start p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
                 li.onclick = () => openModal(todo.id);
                 
@@ -464,14 +391,11 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-2">
-                            <div class="text-sm font-semibold lowercase break-words">${todo.title} ${hasNotes ? '<span class="text-[10px] ml-1">📝</span>' : ''}</div>
+                            <div class="text-sm font-semibold lowercase break-words">${todo.title}</div>
                             <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0">✕</button>
                         </div>
                         <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
-                            <div class="flex items-center gap-2">
-                                <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
-                                ${!isDone && progressPct > 0 ? `<span class="text-[10px] bg-purple-500/10 text-purple-700 px-1.5 py-0.2 rounded font-bold">${progressPct}%</span>` : ''}
-                            </div>
+                            <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
                             <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
                         </div>
                     </div>
@@ -519,9 +443,7 @@
             
                 if (pendingTasksCount > 0) {
                     borderColorClass = 'border-purple-400';
-                    if (pendingTasksCount === 1) borderThicknessClass = 'border-2';
-                    else if (pendingTasksCount === 2) borderThicknessClass = 'border-4';
-                    else if (pendingTasksCount >= 3) borderThicknessClass = 'border-8';
+                    borderThicknessClass = pendingTasksCount === 1 ? 'border-2' : (pendingTasksCount === 2 ? 'border-4' : 'border-8');
                 }
             
                 dayBox.className = `p-2 rounded-xl ${borderThicknessClass} ${borderColorClass} flex flex-col items-center justify-center text-center text-xs font-medium transition-all aspect-square overflow-hidden cursor-pointer hover:scale-[1.02] ${isRealToday ? 'ring-2 ring-purple-100/50 bg-white' : ''}`;
@@ -533,16 +455,13 @@
             }
         }
 
-        // --- INTELLIGENT TEXT SCRUBBER & EXTRACTOR ---
+        // --- INTELLIGENT PARSER PIPELINE ---
         function parseExpenseInput(rawVal) {
             const cleanText = rawVal.trim().toLowerCase();
-            
-            // Isolate any valid currency value pattern anywhere in the pasted string
             const numberMatch = cleanText.match(/\d+(\.\d{1,2})?/);
             if (!numberMatch) return null;
             const amount = parseFloat(numberMatch[0]);
             
-            // Clean out transaction metadata noise and conversational filler patterns
             let description = cleanText
                 .replace(numberMatch[0], '')
                 .replace(/[$¢€£]/g, '')
@@ -572,11 +491,9 @@
             return { amount, description, category };
         }
 
-        // --- SUBMISSION ENTRY ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const inputEl = document.getElementById('express-expense-input');
-            const result = parseExpenseInput(inputEl.value);
+            const result = parseExpenseInput(expressExpenseInput.value);
             
             if (!result) return alert('could not isolate a cost. include a number value (e.g. 14.50 muji)');
 
@@ -589,23 +506,20 @@
                 description: result.description,
                 category: result.category
             });
-            inputEl.value = '';
+            expressExpenseInput.value = '';
         });
 
-        // --- HEURISTIC DUPLICATE GATEKEEPER ---
         function evaluateAndLogExpense(payload) {
             const isDuplicate = globalExpensesCache.find(exp => {
-                const sameDate = (exp.date === payload.date);
-                const sameAmount = (Math.abs(parseFloat(exp.amount) - payload.amount) < 0.01);
-                const textMatch = exp.description.includes(payload.description) || payload.description.includes(exp.description);
-                return sameDate && sameAmount && textMatch;
+                return (exp.date === payload.date) && 
+                       (Math.abs(parseFloat(exp.amount) - payload.amount) < 0.01) && 
+                       (exp.description.includes(payload.description) || payload.description.includes(exp.description));
             });
 
             if (isDuplicate) {
                 pendingDuplicatePayload = payload;
-                const toast = document.getElementById('duplicate-toast');
-                document.getElementById('duplicate-toast-msg').textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) looks identical to a logged row.`;
-                toast.classList.remove('hidden');
+                document.getElementById('duplicate-toast-msg').textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) matches a logged entry.`;
+                document.getElementById('duplicate-toast').classList.remove('hidden');
             } else {
                 executeInsertExpense(payload);
             }
@@ -636,21 +550,17 @@
             Object.keys(categoryMap).forEach(k => totals[k] = 0);
             let totalCombinedAll = 0;
 
-            const currentViewYear = displayDate.getFullYear();
-            const currentViewMonth = String(displayDate.getMonth() + 1).padStart(2, '0');
-            const currentTargetMonthPrefix = `${currentViewYear}-${currentViewMonth}`;
+            const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
             
             globalExpensesCache.forEach(exp => {
-                if (!exp.date || !exp.date.startsWith(currentTargetMonthPrefix)) return;
+                if (!exp.date || !exp.date.startsWith(prefix)) return;
                 const amt = parseFloat(exp.amount);
                 totalCombinedAll += amt;
                 
-                let catKey = exp.category === 'food & drink' ? 'food & drink' : exp.category;
-                if (totals[catKey] !== undefined) totals[catKey] += amt;
+                if (totals[exp.category] !== undefined) totals[exp.category] += amt;
                 
-                const meta = categoryMap[catKey] || { emoji: '💰', color: 'bg-gray-200' };
-                const dateParts = exp.date.split('-');
-                const displayDateString = `${dateParts[2]}/${dateParts[1]}`;
+                const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+                const [y, m, d] = exp.date.split('-');
 
                 const li = document.createElement('li');
                 li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase cursor-pointer hover:bg-gray-50 transition-colors";
@@ -660,7 +570,7 @@
                         <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
                         <div class="min-w-0 flex-1">
                             <div class="font-semibold text-gray-700 truncate leading-tight">${exp.description}</div>
-                            <div class="text-[10px] text-gray-400 mt-0.5">${displayDateString}</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">${d}/${m}/${y}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 ml-2 shrink-0">
@@ -675,17 +585,17 @@
                 const categorySum = totals[cat];
                 if (categorySum === 0) return;
                 
-                const percentageOfBudget = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
+                const pct = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
                 const meta = categoryMap[cat];
 
                 const block = document.createElement('div');
                 block.innerHTML = `
                     <div class="flex justify-between text-[11px] font-medium text-gray-600 lowercase mb-0.5 items-center">
                         <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
-                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(percentageOfBudget)}%)</span></span>
+                        <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(pct)}%)</span></span>
                     </div>
                     <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
-                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${percentageOfBudget}%"></div>
+                        <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
                     </div>
                 `;
                 expenseVisualStats.appendChild(block);
@@ -693,13 +603,12 @@
         }
 
         window.deleteExpense = async function(id) {
-            const confirmDelete = window.confirm("are you sure you want to delete this expense entry?");
-            if (!confirmDelete) return;
-            const { error } = await supabaseClient.from('expenses').delete().eq('id', id);
-            if (error) console.error(error);
-            else fetchAllData();
+            if (!window.confirm("delete this expense?")) return;
+            await supabaseClient.from('expenses').delete().eq('id', id);
+            fetchAllData();
         };
 
+        // --- MODAL AND TAB UI ANIMATION UTILITIES ---
         function getModalSnapshot() {
             return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
                 .map(id => document.getElementById(id).value).join('|');
@@ -714,10 +623,10 @@
             const parts = todo.due_date ? todo.due_date.split(' ') : ['', ''];
             modalTaskDate.value = parts[0] || '';
             modalTaskTime.value = parts[1] || '';
-            const currentProgress = todo.progress || (todo.is_completed ? 100 : 0);
-            modalTaskProgress.value = currentProgress;
-            modalSliderValue.textContent = currentProgress + '%';
-            modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${currentProgress}%, #e5e7eb ${currentProgress}%)`;
+            const pct = todo.progress || (todo.is_completed ? 100 : 0);
+            modalTaskProgress.value = pct;
+            modalSliderValue.textContent = pct + '%';
+            modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${pct}%, #e5e7eb ${pct}%)`;
             
             taskModal.classList.remove('hidden');
             window.originalModalSnapshotString = getModalSnapshot();
@@ -726,71 +635,57 @@
         window.closeModal = () => taskModal.classList.add('hidden');
 
         window.openExpenseModal = function(id) {
-            const expense = globalExpensesCache.find(e => e.id === id);
-            if (!expense) return;
-        
-            document.getElementById('modal-expense-id').value = expense.id;
-            document.getElementById('modal-expense-date').value = expense.date || '';
-            document.getElementById('modal-expense-amount').value = expense.amount || '';
-            document.getElementById('modal-expense-description').value = expense.description || '';
-            document.getElementById('modal-expense-category').value = expense.category || 'food & drink';
-        
+            const exp = globalExpensesCache.find(e => e.id === id);
+            if (!exp) return;
+            document.getElementById('modal-expense-id').value = exp.id;
+            document.getElementById('modal-expense-date').value = exp.date || '';
+            document.getElementById('modal-expense-amount').value = exp.amount || '';
+            document.getElementById('modal-expense-description').value = exp.description || '';
+            document.getElementById('modal-expense-category').value = exp.category || 'food & drink';
             document.getElementById('expense-modal').classList.remove('hidden');
         };
         
-        window.closeExpenseModal = function() {
-            document.getElementById('expense-modal').classList.add('hidden');
-        };
+        window.closeExpenseModal = () => document.getElementById('expense-modal').classList.add('hidden');
         
         window.saveExpenseModalChanges = async function() {
             const id = document.getElementById('modal-expense-id').value;
-            const dateVal = document.getElementById('modal-expense-date').value;
-            const amountVal = parseFloat(document.getElementById('modal-expense-amount').value);
-            const descVal = document.getElementById('modal-expense-description').value.trim().toLowerCase();
-            const catVal = document.getElementById('modal-expense-category').value;
+            const d = document.getElementById('modal-expense-date').value;
+            const a = parseFloat(document.getElementById('modal-expense-amount').value);
+            const desc = document.getElementById('modal-expense-description').value.trim().toLowerCase();
+            const cat = document.getElementById('modal-expense-category').value;
         
-            if (!dateVal || isNaN(amountVal) || !descVal) {
-                return alert('all fields required.');
-            }
+            if (!d || isNaN(a) || !desc) return alert('all fields required.');
         
-            const { error } = await supabaseClient
-                .from('expenses')
-                .update({ date: dateVal, amount: amountVal, description: descVal, category: catVal })
-                .eq('id', id);
-        
-            if (error) console.error(error);
-            else { closeExpenseModal(); fetchAllData(); }
+            await supabaseClient.from('expenses').update({ date: d, amount: a, description: desc, category: cat }).eq('id', id);
+            closeExpenseModal(); 
+            fetchAllData();
         };
 
         window.showDaySchedulePopup = function(dateStr, dayTasks) {
             const popup = document.getElementById('calendar-day-popup');
             const headerTitle = document.getElementById('popup-schedule-date');
-            const displayListContainer = document.getElementById('popup-schedule-content');
-            if (!popup || !displayListContainer) return;
+            const content = document.getElementById('popup-schedule-content');
         
             const [y, m, d] = dateStr.split('-');
-            if (headerTitle) headerTitle.textContent = `schedule: ${d}/${m}/${y}`;
-            displayListContainer.innerHTML = '';
+            headerTitle.textContent = `schedule: ${d}/${m}/${y}`;
+            content.innerHTML = '';
         
             if (dayTasks.length === 0) {
-                displayListContainer.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled for this day</div>';
+                content.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled</div>';
             } else {
                 dayTasks.forEach(task => {
                     const timeParts = task.due_date.split(' ');
-                    const renderedTimeDisplay = timeParts[1] ? format12Hour(timeParts[1]) : 'full day';
-                    
-                    const cardBlock = document.createElement('div');
-                    cardBlock.className = `p-3 rounded-xl border border-gray-100/70 flex items-center justify-between gap-3 transition-colors hover:bg-gray-50/50 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
-                    cardBlock.onclick = () => { closeDaySchedulePopup(); openModal(task.id); };
-        
-                    cardBlock.innerHTML = `
+                    const tDisplay = timeParts[1] ? format12Hour(timeParts[1]) : 'full day';
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-xl border border-gray-100/70 flex items-center justify-between gap-3 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
+                    card.onclick = () => { closeDaySchedulePopup(); openModal(task.id); };
+                    card.innerHTML = `
                         <div class="min-w-0 flex-1">
                             <div class="text-xs font-semibold text-gray-700 truncate lowercase ${task.is_completed ? 'line-through text-gray-400' : ''}">${task.title}</div>
-                            <div class="text-[10px] text-purple-950/50 font-medium mt-0.5">🕒 ${renderedTimeDisplay}</div>
+                            <div class="text-[10px] text-purple-950/50 font-medium mt-0.5">🕒 ${tDisplay}</div>
                         </div>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-500">${task.is_completed ? 'done' : 'pending'}</span>
                     `;
-                    displayListContainer.appendChild(cardBlock);
+                    content.appendChild(card);
                 });
             }
             popup.classList.remove('hidden');
@@ -799,129 +694,79 @@
         window.closeDaySchedulePopup = () => document.getElementById('calendar-day-popup').classList.add('hidden');
         
         window.handleModalOutsideClick = function(event) {
-            if (window.originalModalSnapshotString === getModalSnapshot()) {
-                window.closeModal();
-                return;
-            }
-            const confirmClose = window.confirm("do you want to save changes before closing?");
-            if (confirmClose) window.saveModalChanges();
-            else window.closeModal();
+            if (window.originalModalSnapshotString === getModalSnapshot()) { closeModal(); return; }
+            if (window.confirm("save changes before closing?")) saveModalChanges();
+            else closeModal();
         };
         
-        window.addEventListener('keydown', function(event) {
-            if (taskModal.classList.contains('hidden')) return;
-            if (event.key === 'Escape') { event.preventDefault(); window.handleModalOutsideClick(event); }
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); window.saveModalChanges(); }
-        });
-                
         window.saveModalChanges = async function() {
             const id = modalTaskId.value;
-            const updatedTitle = modalTaskTitle.value.trim().toLowerCase();
-            const dateVal = modalTaskDate.value;
-            const timeVal = modalTaskTime.value;
-            const updatedNotes = modalTaskNotes.value;
-            const progressVal = parseInt(modalTaskProgress.value);
-            if (!updatedTitle || !dateVal) return alert('description and date required.');
+            const title = modalTaskTitle.value.trim().toLowerCase();
+            const d = modalTaskDate.value;
+            const t = modalTaskTime.value;
+            const notes = modalTaskNotes.value;
+            const prog = parseInt(modalTaskProgress.value);
+            if (!title || !d) return alert('description and date required.');
 
-            const compositeDeadlineString = timeVal ? `${dateVal} ${timeVal}` : dateVal;
-            const targetCompletionBoolean = (progressVal === 100);
-
-            const { error } = await supabaseClient
-                .from('todos')
-                .update({ title: updatedTitle, due_date: compositeDeadlineString, notes: updatedNotes, progress: progressVal, is_completed: targetCompletionBoolean })
-                .eq('id', id);
-
-            if (error) alert('failed to save records.');
-            else { closeModal(); fetchAllData(); }
-        };
-
-        window.fastToggleTodo = async function(id, currentStatus) {
-            const nextStatus = !currentStatus;
-            await supabaseClient.from('todos').update({ is_completed: nextStatus, progress: nextStatus ? 100 : 0 }).eq('id', id);
+            await supabaseClient.from('todos').update({ title, due_date: t ? `${d} ${t}` : d, notes, progress: prog, is_completed: (prog === 100) }).eq('id', id);
+            closeModal(); 
             fetchAllData();
         };
 
-        window.changeMonth = function(direction) {
+        window.fastToggleTodo = async function(id, status) {
+            await supabaseClient.from('todos').update({ is_completed: !status, progress: !status ? 100 : 0 }).eq('id', id);
+            fetchAllData();
+        };
+
+        window.changeMonth = function(dir) {
             displayDate.setDate(1); 
-            displayDate.setMonth(displayDate.getMonth() + direction);
+            displayDate.setMonth(displayDate.getMonth() + dir);
             renderCalendarGrid();
             renderExpenses();
         };
 
         window.switchMobileTab = function(activeTab) {
-            const tabs = ['timeline', 'calendar', 'expenses'];
-            tabs.forEach(t => {
+            ['timeline', 'calendar', 'expenses'].forEach(t => {
                 const btn = document.getElementById(`tab-btn-${t}`);
                 const sec = document.getElementById(`mobile-sec-${t}`);
                 if (!btn || !sec) return;
                 if (t === activeTab) {
                     btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700";
-                    sec.classList.remove('hidden');
-                    sec.classList.add('flex');
+                    sec.classList.remove('hidden'); sec.classList.add('flex');
                 } else {
                     btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600";
-                    sec.classList.add('hidden');
-                    sec.classList.remove('flex');
+                    sec.classList.add('hidden'); sec.classList.remove('flex');
                 }
             });
         };
 
-        let lastCachedWidth = window.innerWidth;
-        window.addEventListener('resize', () => {
-            if (window.innerWidth === lastCachedWidth) return;
-            lastCachedWidth = window.innerWidth;
-            if (window.innerWidth >= 768) {
-                ['calendar', 'timeline', 'expenses'].forEach(t => {
-                    const sec = document.getElementById(`mobile-sec-${t}`);
-                    if (sec) { sec.classList.remove('hidden'); sec.classList.add('flex'); }
-                });
-            } else {
-                switchMobileTab('timeline');
-            }
-        });
-
         todoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const entryTypeElement = document.getElementById('entry-type');
-            const entryType = entryTypeElement ? entryTypeElement.value : 'task';
-            const rawInput = todoInput.value.trim().toLowerCase();
-            const chosenDate = todoDate.value;
-            const chosenTime = todoTime.value;
-            
-            if (!rawInput) return;
+            const type = document.getElementById('entry-type').value;
+            const raw = todoInput.value.trim().toLowerCase();
+            const d = todoDate.value;
+            const t = todoTime.value;
+            if (!raw) return;
         
-            if (entryType === 'expense') {
-                const result = parseExpenseInput(rawInput);
-                if (!result) return alert('start with a number for expenses (e.g. 3.92 fries)');
-            
-                evaluateAndLogExpense({
-                    date: chosenDate,
-                    amount: result.amount,
-                    description: result.description,
-                    category: result.category
-                });
-                todoInput.value = ''; 
-                todoTime.value = '';
+            if (type === 'expense') {
+                const res = parseExpenseInput(raw);
+                if (!res) return alert('start with a number for expenses (e.g. 3.92 fries)');
+                evaluateAndLogExpense({ date: d, amount: res.amount, description: res.description, category: res.category });
             } else {
-                if (!chosenDate) return alert('date selection required for tasks.');
-                const compositeDeadlineString = chosenTime ? `${chosenDate} ${chosenTime}` : chosenDate;
-        
-                const { error } = await supabaseClient
-                    .from('todos')
-                    .insert([{ title: rawInput, is_completed: false, due_date: compositeDeadlineString, notes: '', progress: 0 }]);
-        
-                if (error) console.error(error);
-                else { todoInput.value = ''; todoTime.value = ''; fetchAllData(); }
+                if (!d) return alert('date selection required.');
+                await supabaseClient.from('todos').insert([{ title: raw, is_completed: false, due_date: t ? `${d} ${t}` : d, notes: '', progress: 0 }]);
             }
+            todoInput.value = ''; todoTime.value = '';
+            fetchAllData();
         });
 
         window.deleteTodo = async function(id) {
-            const confirmDelete = window.confirm("are you sure you want to delete this task?");
-            if (!confirmDelete) return;
+            if (!window.confirm("delete this task?")) return;
             await supabaseClient.from('todos').delete().eq('id', id);
             fetchAllData();
         };
 
+        // Run Init Execution
         fetchAllData();
     </script>
 </body>
