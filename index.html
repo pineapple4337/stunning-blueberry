@@ -377,31 +377,46 @@
             return `📌 ${differenceInDays} days left`;
         }
 
+        // --- UPGRADED INTELLIGENT EXPRESS TEXT CLEANER & PARSER ---
         function parseExpenseInput(rawVal) {
-            const match = rawVal.match(/^([\d\.]+)\s+(.*)$/);
-            if (!match) return null;
-        
-            const amount = parseFloat(match[1]);
-            const description = match[2].trim().toLowerCase();
-            if (isNaN(amount)) return null;
-        
+            // Convert to lowercase and sanitize extra spacing
+            const cleanText = rawVal.trim().toLowerCase();
+            
+            // Extract any decimal or integer number from anywhere in the text string
+            const numberMatch = cleanText.match(/\d+(\.\d{1,2})?/);
+            if (!numberMatch) return null;
+            
+            const amount = parseFloat(numberMatch[0]);
+            
+            // Scrub out the currency signs, numbers, and common robotic filler words
+            let description = cleanText
+                .replace(numberMatch[0], '') // Remove the price number
+                .replace(/[$¢€£]/g, '')     // Strip common currency characters
+                .replace(/\b(logged|spent|bought|at|for|total|items|amount|price|cost|the|a|on)\b/g, '') // Remove fluff words
+                .replace(/\s+/g, ' ')       // Clean up consecutive whitespace
+                .trim();
+                
+            if (!description) description = "express expense";
+
+            // Smart routing keyword table matching your strict lowercase categories
             const keywords = {
-                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit'],
-                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam'],
+                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit', 'train'],
+                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam', 'iced', 'americano', 'coffee'],
                 'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping', 'lazada', 'amazon'],
                 'subscriptions': ['netflix', 'spotify', 'icloud', 'sub', 'openai', 'youtube'],
                 'events': ['movie', 'concert', 'ticket', 'show', 'event', 'dialogue'],
                 'fees': ['bill', 'fine', 'bank', 'tax', 'fee', 'tuition'],
                 'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health', 'watsons', 'guardian']
             };
-        
-            let category = forceActiveCategoryHint;
+
+            let category = forceActiveCategoryHint; // Fallback to current selection indicator
             for (const [cat, words] of Object.entries(keywords)) {
                 if (words.some(word => description.includes(word))) {
                     category = cat;
                     break;
                 }
             }
+            
             return { amount, description, category };
         }
         
@@ -533,22 +548,31 @@
             }
         }
 
-        // --- EXPENSE HANDLERS & DUPLICITE VERIFICATION PIPELINE ---
+        // --- EXPRESS INPUT WORKFLOW ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const result = parseExpenseInput(expressExpenseInput.value.trim().toLowerCase());
-            if (!result) return alert('format error. use: "amount description" (e.g. 14.20 dinner with group)');
-        
+            const rawValue = expressExpenseInput.value;
+            if (!rawValue.trim()) return;
+
+            const result = parseExpenseInput(rawValue);
+            if (!result) {
+                alert('could not isolate an amount. make sure to include a number (e.g., "muji 14.50")');
+                return;
+            }
+
+            // Generate clean local yyyy-mm-dd date stamp
             const tzOffset = actualToday.getTimezoneOffset() * 60000;
             const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
-        
+
+            // Send to duplicate validation gate
             evaluateAndLogExpense({
                 date: cleanLocalDateIso,
                 amount: result.amount,
                 description: result.description,
                 category: result.category
             });
-            expressExpenseInput.value = '';
+
+            expressExpenseInput.value = ''; // Reset input text frame
         });
 
         // Smart evaluation gate checking for semantic overlaps
