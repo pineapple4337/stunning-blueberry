@@ -147,7 +147,12 @@
                 <div id="expense-visual-stats" class="space-y-2"></div>
             </div>
 
-            <div class="text-xs font-bold text-gray-400 lowercase mb-2">transaction ledger</div>
+            <div class="flex items-center justify-between mb-2 select-none">
+                <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
+                <button onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer" title="toggle expanded view">
+                    <span>expand view</span> ↗
+                </button>
+            </div>
             <div class="flex-1 overflow-y-auto no-scrollbar min-h-0">
                 <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
             </div>
@@ -342,6 +347,44 @@
             return `📌 ${differenceInDays} days left`;
         }
 
+        // --- LAPTOP LEDGER FULLSCREEN/FOCUS MODE TOGGLER ---
+        window.toggleLedgerFullscreen = function() {
+            const expenseSection = document.getElementById('mobile-sec-expenses');
+            const calendarSection = document.getElementById('mobile-sec-calendar');
+            const timelineSection = document.getElementById('mobile-sec-timeline');
+            const zoomBtn = document.getElementById('ledger-zoom-btn');
+            
+            // Check if it's currently expanded by looking for our custom width override
+            const isExpanded = expenseSection.classList.contains('md:flex-1');
+            
+            if (!isExpanded) {
+                // Collapse Calendar and Timeline smoothly to give ledger total center stage
+                calendarSection.classList.replace('md:flex', 'md:hidden');
+                timelineSection.classList.replace('flex', 'md:hidden');
+                
+                // Expand the Expense card to take up all available horizontal real estate
+                expenseSection.classList.replace('md:w-96', 'md:flex-1');
+                
+                // Change the button text
+                zoomBtn.innerHTML = '<span>collapse view</span> ↙';
+            } else {
+                // Restore Calendar and Timeline panels back to view frame
+                calendarSection.classList.replace('md:hidden', 'md:flex');
+                timelineSection.classList.replace('md:hidden', 'flex');
+                
+                // Snap back the expense pane container to its structural base layout width
+                expenseSection.classList.replace('md:flex-1', 'md:w-96');
+                
+                // Reset the button text
+                zoomBtn.innerHTML = '<span>expand view</span> ↗';
+            }
+            
+            // Trigger calendar redraw to ensure structural cell ratios match new width container dimensions
+            if (typeof renderCalendarGrid === 'function') {
+                renderCalendarGrid();
+            }
+        };
+        
         // --- FETCH ENGINE ---
         async function fetchAllData() {
             try {
