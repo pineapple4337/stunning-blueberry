@@ -391,8 +391,8 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-2">
-                            <div class="text-sm font-semibold lowercase break-words">${todo.title}</div>
-                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-400 transition-colors text-xs font-bold px-1 cursor-pointer shrink-0">✕</button>
+                            <div class="text-sm font-semibold lowercase break-words flex-1 pr-1">${todo.title}</div>
+                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 active:text-rose-400 transition-colors text-sm font-bold -mt-3 -mr-3 p-3.5 cursor-pointer shrink-0 touch-manipulation">✕</button>
                         </div>
                         <div class="flex items-center justify-between mt-2 text-[11px] font-medium tracking-tight text-purple-950/60">
                             <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
@@ -571,9 +571,9 @@
                             <div class="text-[10px] text-gray-400 mt-0.5">${d}/${m}/${y}</div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 ml-2 shrink-0">
-                        <span class="font-bold text-gray-600">-$${amt.toFixed(2)}</span>
-                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-400 font-bold px-1 text-xs transition-colors cursor-pointer">✕</button>
+                    <div class="flex items-center gap-1 ml-2 shrink-0">
+                        <span class="font-bold text-gray-600 mr-1">-$${amt.toFixed(2)}</span>
+                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 font-bold text-sm transition-colors cursor-pointer -my-3 -mr-2 p-3.5 touch-manipulation">✕</button>
                     </div>
                 `;
                 expenseLedgerList.appendChild(li);
