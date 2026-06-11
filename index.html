@@ -35,6 +35,19 @@
     </style>
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans relative">
+    <div id="duplicate-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all">
+        <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-gray-800 lowercase">possible duplicate entry</div>
+                <div id="duplicate-toast-msg" class="text-[11px] text-gray-500 mt-0.5 lowercase"></div>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 mt-1">
+            <button onclick="dismissDuplicate()" class="px-3 py-1.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-lg cursor-pointer">skip</button>
+            <button onclick="forceInsertDuplicate()" class="px-3 py-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-lg cursor-pointer">log anyway</button>
+        </div>
+    </div>
 
     <div id="duplicate-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/90 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all duration-300">
         <div class="flex items-start gap-3">
@@ -121,22 +134,9 @@
             </div>
             
             <div class="mb-4 space-y-2">
-                <div id="drop-zone" class="border-2 border-dashed border-gray-200 hover:border-purple-300 rounded-xl p-4 text-center cursor-pointer transition-all bg-gray-50/50 relative overflow-hidden group">
-                    <input type="file" id="receipt-file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
-                    <div id="drop-zone-prompt" class="space-y-1">
-                        <div class="text-xl group-hover:scale-110 transition-transform">📷</div>
-                        <div class="text-[11px] font-bold text-gray-500 lowercase">drop receipt screenshot or tap to scan</div>
-                        <div class="text-[9px] text-gray-400 lowercase">powered by gemini 2.5 flash</div>
-                    </div>
-                    <div id="drop-zone-loader" class="hidden absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-1.5">
-                        <div class="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
-                        <div class="text-[10px] font-bold text-purple-600 lowercase animate-pulse">reading picture parameters...</div>
-                    </div>
-                </div>
-
-                <form id="express-expense-form" class="flex gap-2">
-                    <input type="text" id="express-expense-input" placeholder="or type amt description..." required class="flex-1 px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
-                    <button type="submit" class="px-3 py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">log</button>
+                <form id="express-expense-form" class="flex flex-col gap-2">
+                    <textarea id="express-expense-input" rows="2" placeholder="paste raw output or text from gemini here..." required class="w-full px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-300"></textarea>
+                    <button type="submit" class="w-full py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">clean & log entry</button>
                 </form>
                 
                 <div class="mt-2">
@@ -268,9 +268,8 @@
         const SUPABASE_URL = 'https://rvuidgtkyerxhbiknznr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2dWlkZ3RreWVyeGhiaWtuem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjA2MTUsImV4cCI6MjA5NTY5NjYxNX0.D_a_Ez5PHNnANp9O_zPeZbztphBP2pBHtLDN67-Ren4';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // SECURE SYSTEM INSTRUCTION ENFORCEMENT PROTOCOL FOR THE VISION PARSER
-        const GEMINI_SYSTEM_INSTRUCTION = `analyze the receipt image. output a valid json object with fields "amount" (float), "description" (lowercase text short description), and "category" (lowercase string strictly mapped to either 'food & drink', 'shopping', 'subscriptions', 'events', 'fees', 'health', or 'transport'). do not wrap the output in markdown code blocks. format output as single json object raw text layout.`;
+        
+        let pendingDuplicatePayload = null; // Staging container for duplicate validation gate
 
         // --- DOM REFERENCES ---
         const todoForm = document.getElementById('todo-form');
@@ -548,46 +547,79 @@
             }
         }
 
-        // --- EXPRESS INPUT WORKFLOW ROUTER ---
+        // --- INTELLIGENT TEXT SCRUBBER & EXTRACTOR ---
+        function parseExpenseInput(rawVal) {
+            const cleanText = rawVal.trim().toLowerCase();
+            
+            // Isolate any valid currency value pattern anywhere in the pasted string
+            const numberMatch = cleanText.match(/\d+(\.\d{1,2})?/);
+            if (!numberMatch) return null;
+            const amount = parseFloat(numberMatch[0]);
+            
+            // Clean out transaction metadata noise and conversational filler patterns
+            let description = cleanText
+                .replace(numberMatch[0], '')
+                .replace(/[$¢€£]/g, '')
+                .replace(/\b(logged|spent|bought|at|for|total|items|amount|price|cost|the|a|on|receipt|transaction|value)\b/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+                
+            if (!description) description = "pasted expense";
+
+            const keywords = {
+                'transport': ['bus', 'mrt', 'grab', 'taxi', 'fare', 'transit', 'train'],
+                'food & drink': ['baking', 'food', 'lunch', 'dinner', 'cafe', 'kopi', 'bakery', 'mee', 'fries', 'starbucks', 'mcdonald', 'kopitiam', 'iced', 'americano', 'coffee', 'dining'],
+                'shopping': ['muji', 'uniqlo', 'shopee', 'mall', 'clothes', 'shopping', 'lazada', 'amazon'],
+                'subscriptions': ['netflix', 'spotify', 'icloud', 'sub', 'openai', 'youtube'],
+                'events': ['movie', 'concert', 'ticket', 'show', 'event', 'dialogue'],
+                'fees': ['bill', 'fine', 'bank', 'tax', 'fee', 'tuition'],
+                'health': ['clinic', 'doctor', 'pharmacy', 'med', 'health', 'watsons', 'guardian']
+            };
+
+            let category = forceActiveCategoryHint;
+            for (const [cat, words] of Object.entries(keywords)) {
+                if (words.some(word => description.includes(word))) {
+                    category = cat;
+                    break;
+                }
+            }
+            return { amount, description, category };
+        }
+
+        // --- SUBMISSION ENTRY ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const rawValue = expressExpenseInput.value;
-            if (!rawValue.trim()) return;
+            const inputEl = document.getElementById('express-expense-input');
+            const result = parseExpenseInput(inputEl.value);
+            
+            if (!result) return alert('could not isolate a cost. include a number value (e.g. 14.50 muji)');
 
-            const result = parseExpenseInput(rawValue);
-            if (!result) {
-                alert('could not isolate an amount. make sure to include a number (e.g., "muji 14.50")');
-                return;
-            }
-
-            // Generate clean local yyyy-mm-dd date stamp
             const tzOffset = actualToday.getTimezoneOffset() * 60000;
             const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
 
-            // Send to duplicate validation gate
             evaluateAndLogExpense({
                 date: cleanLocalDateIso,
                 amount: result.amount,
                 description: result.description,
                 category: result.category
             });
-
-            expressExpenseInput.value = ''; // Reset input text frame
+            inputEl.value = '';
         });
 
-        // Smart evaluation gate checking for semantic overlaps
+        // --- HEURISTIC DUPLICATE GATEKEEPER ---
         function evaluateAndLogExpense(payload) {
-            const matchHeuristic = globalExpensesCache.find(exp => {
+            const isDuplicate = globalExpensesCache.find(exp => {
                 const sameDate = (exp.date === payload.date);
                 const sameAmount = (Math.abs(parseFloat(exp.amount) - payload.amount) < 0.01);
-                const wordOverlap = exp.description.includes(payload.description) || payload.description.includes(exp.description);
-                return sameDate && sameAmount && wordOverlap;
+                const textMatch = exp.description.includes(payload.description) || payload.description.includes(exp.description);
+                return sameDate && sameAmount && textMatch;
             });
 
-            if (matchHeuristic) {
+            if (isDuplicate) {
                 pendingDuplicatePayload = payload;
-                duplicateToastMsg.textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) matches a logged entry.`;
-                duplicateToast.classList.remove('hidden');
+                const toast = document.getElementById('duplicate-toast');
+                document.getElementById('duplicate-toast-msg').textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) looks identical to a logged row.`;
+                toast.classList.remove('hidden');
             } else {
                 executeInsertExpense(payload);
             }
@@ -600,120 +632,14 @@
         }
 
         window.forceInsertDuplicate = function() {
-            if (pendingDuplicatePayload) {
-                executeInsertExpense(pendingDuplicatePayload);
-            }
+            if (pendingDuplicatePayload) executeInsertExpense(pendingDuplicatePayload);
             dismissDuplicate();
         };
 
         window.dismissDuplicate = function() {
             pendingDuplicatePayload = null;
-            duplicateToast.classList.add('hidden');
+            document.getElementById('duplicate-toast').classList.add('hidden');
         };
-
-        // --- INTEGRATED LLM VISION AUTOMATION CONTROLLER ---
-        dropZone.addEventListener('click', () => receiptFileInput.click());
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('border-purple-400', 'bg-purple-50/10');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('border-purple-400', 'bg-purple-50/10');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-purple-400', 'bg-purple-50/10');
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                processScreenshotAndLog(e.dataTransfer.files[0]);
-            }
-        });
-
-        window.handleFileSelect = function(event) {
-            if (event.target.files && event.target.files[0]) {
-                processScreenshotAndLog(event.target.files[0]);
-            }
-        };
-
-        // Reads files locally and pushes down execution timeline inside browser workspace
-        function processScreenshotAndLog(file) {
-            // Pull client tokens directly out of browser execution context
-            let localStoredToken = localStorage.getItem('GEMINI_API_KEY');
-            if (!localStoredToken || localStoredToken.trim() === "" || localStoredToken === "null") {
-                const enteredKey = prompt("please input your gemini api key from google ai studio to initialize vision capabilities:");
-                if (!enteredKey || enteredKey.trim() === "") return;
-                localStorage.setItem('GEMINI_API_KEY', enteredKey.trim());
-                localStoredToken = enteredKey.trim();
-            }
-
-            dropZoneLoader.classList.remove('hidden');
-            
-            const reader = new FileReader();
-            reader.onloadend = async function() {
-                const base64Data = reader.result.split(',')[1];
-                const mimeType = file.type;
-                
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${localStorage.getItem('GEMINI_API_KEY')}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    { text: GEMINI_SYSTEM_INSTRUCTION },
-                                    { inlineData: { mimeType: mimeType, data: base64Data } }
-                                ]
-                            }]
-                        })
-                    });
-
-                    // CATCH EXPLICIT CREDENTIAL AUTHORIZATION FAILS (400, 403, 404, etc.)
-                    if (!response.ok) {
-                        const errData = await response.json().catch(() => ({}));
-                        const errMsg = errData.error?.message || "unauthorized API request setup";
-                        
-                        if (response.status === 400 || response.status === 403) {
-                            localStorage.removeItem('GEMINI_API_KEY'); // Scrub local data so it re-prompts
-                            throw new Error(`[api key rejected]: ${errMsg}. your stored key was cleared. refresh and try a fresh key.`);
-                        }
-                        throw new Error(`server responded with code ${response.status}: ${errMsg}`);
-                    }
-
-                    const data = await response.json();
-                    dropZoneLoader.classList.add('hidden');
-
-                    if (!data.candidates || data.candidates.length === 0) {
-                        throw new Error("malformed model response structure.");
-                    }
-
-                    let jsonRawText = data.candidates[0].content.parts[0].text.trim();
-                    // Clean code fence lines if generated by the LLM
-                    if (jsonRawText.startsWith("```")) {
-                        jsonRawText = jsonRawText.replace(/^```json?/, "").replace(/```$/, "").trim();
-                    }
-
-                    const parsedResult = JSON.parse(jsonRawText);
-                    
-                    const tzOffset = actualToday.getTimezoneOffset() * 60000;
-                    const cleanLocalDateIso = new Date(actualToday - tzOffset).toISOString().split('T')[0];
-
-                    evaluateAndLogExpense({
-                        date: cleanLocalDateIso,
-                        amount: parseFloat(parsedResult.amount),
-                        description: parsedResult.description.toLowerCase(),
-                        category: parsedResult.category.toLowerCase()
-                    });
-
-                } catch (err) {
-                    dropZoneLoader.classList.add('hidden');
-                    console.error('multimodal execution failure:', err);
-                    alert(err.message || 'failed to interpret receipt configurations. verify your api token limits.');
-                }
-            };
-            reader.readAsDataURL(file);
-        }
 
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
