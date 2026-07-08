@@ -14,7 +14,15 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ffd6e0'/%3E%3Cstop offset='100%25' stop-color='%23e8dbfc'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3C/svg%3E">
 
     <style>
-        body { background-color: #fafafa; overscroll-behavior-y: contain; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top right, rgba(232, 219, 252, 0.15), transparent 400px),
+                        radial-gradient(circle at bottom left, rgba(255, 214, 224, 0.15), transparent 400px),
+                        #fafafa; 
+            overscroll-behavior-y: contain; 
+        }
         .pastel-pink-1 { background-color: #ffd6e0; }
         .pastel-pink-2 { background-color: #ffeff2; }
         .pastel-purple-1 { background-color: #e8dbfc; }
@@ -26,6 +34,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
         @media (max-width: 767px) {
             body { height: auto !important; overflow-x: hidden; overscroll-behavior-y: contain; }
             main { flex-direction: column !important; overflow: visible !important; height: auto !important; }
@@ -34,130 +48,129 @@
         }
     </style>
 </head>
-<body class="flex flex-col h-screen text-gray-700 font-sans relative">
+<body class="flex flex-col h-screen text-gray-700 font-sans relative antialiased selection:bg-purple-100">
 
-    <div id="duplicate-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all">
+    <div id="duplicate-toast" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all scale-95 duration-200">
         <div class="flex items-start gap-3">
             <span class="text-xl">⚠️</span>
             <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-gray-800 lowercase">possible duplicate entry</div>
+                <div class="text-xs font-bold text-gray-800 lowercase tracking-wide">Possible Duplicate Entry</div>
                 <div id="duplicate-toast-msg" class="text-[11px] text-gray-500 mt-0.5 lowercase"></div>
             </div>
         </div>
         <div class="flex items-center justify-end gap-2 mt-1">
-            <button onclick="dismissDuplicate()" class="px-3 py-1.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-lg cursor-pointer">skip</button>
-            <button onclick="forceInsertDuplicate()" class="px-3 py-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-lg cursor-pointer">log anyway</button>
+            <button onclick="dismissDuplicate()" class="px-3 py-1.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-xl cursor-pointer hover:bg-gray-200 active:scale-95 transition-all">skip</button>
+            <button onclick="forceInsertDuplicate()" class="px-3 py-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-xl cursor-pointer hover:bg-amber-200 active:scale-95 transition-all">log anyway</button>
         </div>
     </div>
 
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 shadow-sm shrink-0">
-        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-3xs shrink-0">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
             <div class="flex items-center justify-between w-full lg:w-auto">
-                <h1 onclick="window.location.reload()" class="text-xl font-bold tracking-tight text-gray-800 whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity">to-dos 📚</h1>
-                <span id="task-count" class="lg:hidden px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
+                <h1 onclick="window.location.reload()" class="text-2xl font-black tracking-tight bg-gradient-to-r from-purple-600 via-pink-500 to-rose-400 bg-clip-text text-transparent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity active:scale-98 transform duration-150">to-dos 📚</h1>
+                <span id="task-count" class="lg:hidden px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
             </div>
             
-            <form id="todo-form" class="bg-white p-2 rounded-xl border border-gray-100 shadow-3xs my-2 w-full">
-                <div class="flex flex-col md:flex-row gap-2 w-full items-stretch md:items-center">
+            <form id="todo-form" class="bg-gray-50/60 p-1.5 rounded-2xl border border-gray-100 shadow-3xs w-full lg:max-w-3xl">
+                <div class="flex flex-col sm:flex-row gap-2 w-full items-stretch sm:items-center">
                     <div class="flex flex-1 gap-2 items-center w-full">
                         <div class="shrink-0">
-                            <select id="entry-type" class="h-9 px-2 text-xs font-bold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
+                            <select id="entry-type" class="h-10 px-3 text-xs font-extrabold text-gray-600 bg-white shadow-2xs border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
                                 <option value="task">📝 task</option>
                                 <option value="expense">💰 expense</option>
                             </select>
                         </div>
                         <div class="flex-1 w-full">
-                            <input type="text" id="todo-input" placeholder="type task OR expense details here..." required class="w-full h-9 px-3 text-xs lowercase bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                            <input type="text" id="todo-input" placeholder="what's on your mind? type details..." required class="w-full h-10 px-4 text-xs lowercase bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all placeholder-gray-400 font-medium">
                         </div>
                     </div>
-                    <div class="flex gap-1.5 w-full md:w-auto justify-between md:justify-end items-center shrink-0">
-                        <input type="date" id="todo-date" required class="flex-1 md:flex-initial h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
-                        <input type="time" id="todo-time" class="flex-1 md:flex-initial h-9 px-2 text-xs font-semibold text-gray-600 bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all cursor-pointer">
-                        <button type="submit" class="h-9 px-4 text-xs font-bold text-gray-700 pastel-purple-1 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0">log item</button>
+                    <div class="flex gap-2 w-full sm:w-auto justify-between sm:justify-end items-center shrink-0">
+                        <input type="date" id="todo-date" required class="flex-1 sm:flex-initial h-10 px-3 text-xs font-bold text-gray-500 bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
+                        <input type="time" id="todo-time" class="flex-1 sm:flex-initial h-10 px-3 text-xs font-bold text-gray-500 bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
+                        <button type="submit" class="h-10 px-5 text-xs font-extrabold text-purple-800 pastel-purple-1 rounded-xl shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer shrink-0">log item</button>
                     </div>
                 </div>
             </form>
         </div>
     </header>
 
-    <div class="flex md:hidden bg-white border border-gray-100 p-1 rounded-xl gap-1 shrink-0 mx-4 mt-2">
-        <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700">timeline 🌸</button>
-        <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">calendar 📅</button>
-        <button id="tab-btn-expenses" onclick="switchMobileTab('expenses')" class="flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600">expenses 💰</button>
+    <div class="flex md:hidden bg-gray-100 p-1.5 rounded-2xl gap-1 shrink-0 mx-6 mt-4 shadow-3xs">
+        <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all pastel-purple-1 text-purple-800 shadow-2xs">timeline 🌸</button>
+        <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600">calendar 📅</button>
+        <button id="tab-btn-expenses" onclick="switchMobileTab('expenses')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600">expenses 💰</button>
     </div>
 
-    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-4 gap-4 min-h-0">
+    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-6 gap-6 min-h-0">
         
-        <section id="mobile-sec-calendar" class="hidden md:flex html-calendar-grid flex-col flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
-            <div class="flex items-center justify-between mb-4">
-                <h2 id="calendar-month-year" class="text-lg font-bold text-gray-800 lowercase">...</h2>
-                <div class="flex gap-1">
-                    <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
-                    <button onclick="changeMonth(1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">›</button>
+        <section id="mobile-sec-calendar" class="hidden md:flex html-calendar-grid flex-col flex-1 glass-card rounded-3xl p-6 shadow-sm overflow-hidden transition-all duration-300">
+            <div class="flex items-center justify-between mb-5">
+                <h2 id="calendar-month-year" class="text-xl font-extrabold text-gray-800 tracking-tight lowercase">...</h2>
+                <div class="flex gap-1.5">
+                    <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">‹</button>
+                    <button onclick="changeMonth(1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">›</button>
                 </div>
             </div>
-            <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-400 mb-2">
+            <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-gray-400 tracking-wider lowercase mb-3">
                 <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
             </div>
-            <div id="calendar-days" class="grid grid-cols-7 grid-rows-none auto-rows-stretch gap-2 flex-1 h-full min-h-0 overflow-hidden no-scrollbar"></div>
+            <div id="calendar-days" class="grid grid-cols-7 grid-rows-none auto-rows-stretch gap-2.5 flex-1 h-full min-h-0 overflow-hidden no-scrollbar"></div>
         </section>
 
-        <section id="mobile-sec-timeline" class="flex w-full md:w-85 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
-            <div class="flex items-center justify-between mb-4 shrink-0">
-                <h2 class="text-lg font-bold text-gray-800">timeline</h2>
-                <span id="desktop-task-count" class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full pastel-purple-1">0 tasks</span>
+        <section id="mobile-sec-timeline" class="flex w-full md:w-96 flex-col glass-card rounded-3xl p-6 shadow-sm overflow-hidden h-full transition-all duration-300">
+            <div class="flex items-center justify-between mb-5 shrink-0">
+                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight">timeline</h2>
+                <span id="desktop-task-count" class="hidden md:inline-block px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
             </div>
-            <div id="loading-state" class="text-center py-8 text-sm text-gray-400 shrink-0">loading your deck...</div>
-            <ul id="todo-list" class="space-y-3 flex-1 overflow-y-auto no-scrollbar hidden pb-8"></ul>
+            <div id="loading-state" class="text-center py-12 text-xs font-medium text-gray-400 tracking-wide shrink-0">loading your deck...</div>
+            <ul id="todo-list" class="space-y-3.5 flex-1 overflow-y-auto no-scrollbar hidden pb-8"></ul>
         </section>
 
-        <section id="mobile-sec-expenses" class="hidden md:flex w-full md:w-96 flex-col bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden h-full">
-            <div id="expenses-heading-row" class="flex items-center justify-between mb-4 shrink-0">
-                <h2 class="text-lg font-bold text-gray-800 lowercase">expenses</h2>
-                <div class="flex gap-1">
-                    <button onclick="changeMonth(-1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">‹</button>
-                    <button onclick="changeMonth(1)" class="p-2 text-sm font-bold bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-100 transition-colors cursor-pointer text-gray-500">›</button>
+        <section id="mobile-sec-expenses" class="hidden md:flex w-full md:w-96 flex-col glass-card rounded-3xl p-6 shadow-sm overflow-hidden h-full transition-all duration-300">
+            <div id="expenses-heading-row" class="flex items-center justify-between mb-5 shrink-0">
+                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight lowercase">expenses</h2>
+                <div class="flex gap-1.5">
+                    <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">‹</button>
+                    <button onclick="changeMonth(1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">›</button>
                 </div>
             </div>
             
-            <div id="ledger-input-area" class="mb-4 space-y-2 shrink-0">
+            <div id="ledger-input-area" class="mb-5 space-y-3 shrink-0">
                 <form id="express-expense-form" class="flex flex-col gap-2">
-                    <textarea id="express-expense-input" rows="2" placeholder="paste raw text or chat parameters from gemini here..." required class="w-full px-3 py-2 text-xs lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-300"></textarea>
-                    <button type="submit" class="w-full py-2 text-xs font-bold text-gray-700 pastel-mint rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">clean & log entry</button>
+                    <textarea id="express-expense-input" rows="2" placeholder="paste parameters from raw chat logs here..." required class="w-full px-4 py-3 text-xs lowercase bg-gray-50/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-400 font-medium leading-relaxed"></textarea>
+                    <button type="submit" class="w-full py-2.5 text-xs font-bold text-emerald-800 pastel-mint rounded-xl shadow-2xs hover:opacity-90 active:scale-98 transition-all cursor-pointer">clean & log entry</button>
                 </form>
                 
-                <div id="ledger-category-selection-bar" class="mt-2">
-                    <div class="text-[10px] font-bold text-gray-400 lowercase mb-1 text-center">active selector category: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
-                    <div class="grid grid-cols-7 gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                        <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105" title="food & drink">🍔</button>
-                        <button type="button" onclick="setCategory('shopping', '🛍️')" id="cat-btn-shop" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="shopping">🛍️</button>
-                        <button type="button" onclick="setCategory('subscriptions', '📺')" id="cat-btn-sub" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="subscriptions">📺</button>
-                        <button type="button" onclick="setCategory('events', '🎟️')" id="cat-btn-evt" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="events">🎟️</button>
-                        <button type="button" onclick="setCategory('fees', '💵')" id="cat-btn-fee" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="fees">💵</button>
-                        <button type="button" onclick="setCategory('health', '💊')" id="cat-btn-hlth" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="health">💊</button>
-                        <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-md rounded-lg transition-all hover:bg-white/60" title="transport">🚌</button>
+                <div id="ledger-category-selection-bar" class="mt-3">
+                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-2 text-center">Active Selector: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
+                    <div class="grid grid-cols-7 gap-1 bg-gray-100/60 p-1 rounded-xl border border-gray-50">
+                        <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95" title="food & drink">🍔</button>
+                        <button type="button" onclick="setCategory('shopping', '🛍️')" id="cat-btn-shop" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="shopping">🛍️</button>
+                        <button type="button" onclick="setCategory('subscriptions', '📺')" id="cat-btn-sub" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="subscriptions">📺</button>
+                        <button type="button" onclick="setCategory('events', '🎟️')" id="cat-btn-evt" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="events">🎟️</button>
+                        <button type="button" onclick="setCategory('fees', '💵')" id="cat-btn-fee" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="fees">💵</button>
+                        <button type="button" onclick="setCategory('health', '💊')" id="cat-btn-hlth" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="health">💊</button>
+                        <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="transport">🚌</button>
                     </div>
                 </div>
-                <hr class="border-gray-50 pt-1">
             </div>
 
-            <div id="ledger-workspace-wrapper" class="flex flex-col flex-1 min-h-0 gap-4">
+            <div id="ledger-workspace-wrapper" class="flex flex-col flex-1 min-h-0 gap-5">
                 
-                <div id="summary-card-block" class="bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0">
-                    <div class="text-xs font-bold text-gray-400 lowercase mb-2">monthly summary</div>
-                    <div id="expense-visual-stats" class="space-y-2"></div>
+                <div id="summary-card-block" class="bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0">
+                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-3">monthly summary</div>
+                    <div id="expense-visual-stats" class="space-y-3.5"></div>
                 </div>
 
                 <div class="flex flex-col flex-1 min-h-0">
-                    <div class="flex items-center justify-between mb-2 select-none shrink-0">
-                        <div class="text-xs font-bold text-gray-400 lowercase">transaction ledger</div>
-                        <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-600 transition-colors cursor-pointer">
+                    <div class="flex items-center justify-between mb-3 select-none shrink-0">
+                        <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase">transaction ledger</div>
+                        <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-extrabold text-purple-500 hover:text-purple-700 transition-colors cursor-pointer tracking-wide">
                             <span>expand view</span> ↗
                         </button>
                     </div>
                     
                     <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0">
-                        <ul id="expense-ledger-list" class="space-y-2 text-xs"></ul>
+                        <ul id="expense-ledger-list" class="space-y-2.5 text-xs"></ul>
                     </div>
                 </div>
 
@@ -166,74 +179,76 @@
 
     </main>
 
-    <div id="task-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="handleModalOutsideClick(event)">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-50 pb-2">
-                <h3 class="text-md font-bold text-gray-800">task details 📌</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+    <!-- Task Modal Styling Modernization -->
+    <div id="task-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="handleModalOutsideClick(event)">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
+                <h3 class="text-md font-extrabold text-gray-800 tracking-tight">task details 📌</h3>
+                <button onclick="closeModal()" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
             </div>
             <input type="hidden" id="modal-task-id">
-            <div class="space-y-3 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0 mt-3">
+            <div class="space-y-4 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0 mt-4 py-1">
                 <div>
-                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
-                    <input type="text" id="modal-task-title" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all">
+                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">description</label>
+                    <input type="text" id="modal-task-title" class="w-full px-4 py-2.5 text-sm lowercase bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all font-medium text-gray-700">
                 </div>
-                <div class="flex w-full gap-2 table-layout-fixed">
+                <div class="flex w-full gap-3 table-layout-fixed">
                     <div style="width: 50%; min-width: 0;">
-                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">due date</label>
-                        <input type="date" id="modal-task-date" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">due date</label>
+                        <input type="date" id="modal-task-date" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
                     </div>
                     <div style="width: 50%; min-width: 0;">
-                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">time (optional)</label>
-                        <input type="time" id="modal-task-time" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">time (optional)</label>
+                        <input type="time" id="modal-task-time" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
                     </div>
                 </div>
                 <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="text-xs font-bold text-purple-900/40 lowercase">progress</label>
-                        <span id="modal-slider-value" class="text-xs font-bold text-purple-600">0%</span>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase">progress</label>
+                        <span id="modal-slider-value" class="text-xs font-extrabold text-purple-600">0%</span>
                     </div>
-                    <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-400 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
+                    <div class="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-500 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
                     </div>
                 </div>
-                <div class="flex-1 flex flex-col min-h-[120px]">
-                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">notes</label>
-                    <textarea id="modal-task-notes" placeholder="add details, links, or lists here..." class="w-full flex-1 px-3 py-2.5 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-300 overflow-y-auto"></textarea>
+                <div class="flex-1 flex flex-col min-h-[140px]">
+                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">notes</label>
+                    <textarea id="modal-task-notes" placeholder="add details, links, or sub-lists here..." class="w-full flex-1 px-4 py-3 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-400 font-medium leading-relaxed overflow-y-auto"></textarea>
                 </div>
             </div>
-            <div class="flex items-center justify-end gap-2 mt-2">
-                <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
-                <button onclick="saveModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
+            <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-50 shrink-0">
+                <button onclick="closeModal()" class="px-4 py-2.5 text-xs font-bold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500 transition-colors">cancel</button>
+                <button onclick="saveModalChanges()" class="px-5 py-2.5 text-xs font-extrabold text-pink-800 pastel-pink-1 hover:shadow-2xs active:scale-95 rounded-xl cursor-pointer transition-all">save changes</button>
             </div>
         </div>
     </div>
 
-    <div id="expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeExpenseModal()">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-50 pb-2">
-                <h3 class="text-md font-bold text-gray-800">expense details 💰</h3>
-                <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+    <!-- Expense Modal Modification -->
+    <div id="expense-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeExpenseModal()">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 class="text-md font-extrabold text-gray-800 tracking-tight">expense details 💰</h3>
+                <button onclick="closeExpenseModal()" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
             </div>
             <input type="hidden" id="modal-expense-id">
-            <div class="space-y-3 mt-3 w-full">
-                <div class="flex w-full gap-2 table-layout-fixed">
+            <div class="space-y-4 mt-4 w-full">
+                <div class="flex w-full gap-3 table-layout-fixed">
                     <div style="width: 50%; min-width: 0;">
-                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">date</label>
-                        <input type="date" id="modal-expense-date" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">date</label>
+                        <input type="date" id="modal-expense-date" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
                     </div>
                     <div style="width: 50%; min-width: 0;">
-                        <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">amount ($)</label>
-                        <input type="number" step="0.01" id="modal-expense-amount" class="w-full box-border px-2 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">amount ($)</label>
+                        <input type="number" step="0.01" id="modal-expense-amount" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
                     </div>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">description</label>
-                    <input type="text" id="modal-expense-description" class="w-full px-3 py-2 text-sm lowercase bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600">
+                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">description</label>
+                    <input type="text" id="modal-expense-description" class="w-full px-4 py-2.5 text-sm lowercase bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-700 font-medium">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-purple-900/40 lowercase block mb-1">category</label>
-                    <select id="modal-expense-category" class="w-full px-3 py-2 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 cursor-pointer">
+                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">category</label>
+                    <select id="modal-expense-category" class="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-bold cursor-pointer">
                         <option value="food & drink">🍔 food & drink</option>
                         <option value="shopping">🛍️ shopping</option>
                         <option value="subscriptions">📺 subscriptions</option>
@@ -244,20 +259,21 @@
                     </select>
                 </div>
             </div>
-            <div class="flex items-center justify-end gap-2 mt-4">
-                <button onclick="closeExpenseModal()" class="px-4 py-2 text-xs font-semibold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500">cancel</button>
-                <button onclick="saveExpenseModalChanges()" class="px-4 py-2 text-xs font-bold text-gray-700 pastel-pink-1 hover:opacity-90 rounded-xl shadow-2xs cursor-pointer">save changes</button>
+            <div class="flex items-center justify-end gap-2 mt-5 pt-3 border-t border-gray-50">
+                <button onclick="closeExpenseModal()" class="px-4 py-2.5 text-xs font-bold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500 transition-colors">cancel</button>
+                <button onclick="saveExpenseModalChanges()" class="px-5 py-2.5 text-xs font-extrabold text-pink-800 pastel-pink-1 hover:shadow-2xs active:scale-95 rounded-xl cursor-pointer transition-all">save changes</button>
             </div>
         </div>
     </div>
 
-    <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onclick="closeDaySchedulePopup()">
-        <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-xl border border-gray-100 relative" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
-                <h3 id="popup-schedule-date" class="text-sm font-bold text-gray-800 lowercase">schedule details</h3>
-                <button onclick="closeDaySchedulePopup()" class="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+    <!-- Day schedule popup modal adjustment -->
+    <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeDaySchedulePopup()">
+        <div class="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+                <h3 id="popup-schedule-date" class="text-sm font-extrabold text-gray-800 tracking-tight lowercase">schedule details</h3>
+                <button onclick="closeDaySchedulePopup()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
             </div>
-            <div id="popup-schedule-content" class="space-y-2 max-h-[260px] overflow-y-auto no-scrollbar"></div>
+            <div id="popup-schedule-content" class="space-y-2.5 max-h-[280px] overflow-y-auto no-scrollbar py-0.5"></div>
         </div>
     </div>
 
@@ -323,11 +339,11 @@
             
             Object.keys(categoryMap).forEach(key => {
                 const btn = document.getElementById(categoryMap[key].btnId);
-                if (btn) btn.className = "py-2 text-md rounded-lg transition-all hover:bg-white/60";
+                if (btn) btn.className = "py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95";
             });
             
             const targetBtn = document.getElementById(categoryMap[categoryName].btnId);
-            if (targetBtn) targetBtn.className = "py-2 text-md rounded-lg transition-all bg-white shadow-2xs scale-105";
+            if (targetBtn) targetBtn.className = "py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95";
         };
 
         function format12Hour(timeStr) {
@@ -350,7 +366,7 @@
             if (differenceInDays === 0) return '📍 today';
             if (differenceInDays === 1) return '⏳ tomorrow';
             if (differenceInDays < 0) return '⚠️ overdue';
-            return `📌 ${differenceInDays} days left`;
+            return `📌 ${differenceInDays}d left`;
         }
         
         // --- FETCH ENGINE ---
@@ -393,21 +409,21 @@
                 const countdown = isDone ? '✅ done' : getCountdownText(todo.due_date);
 
                 const li = document.createElement('li');
-                li.className = `flex gap-3 items-start p-4 rounded-xl border border-black/5 transition-all cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
+                li.className = `flex gap-3.5 items-start p-4 rounded-2xl border border-black/5 shadow-2xs hover:shadow-xs hover:scale-[1.01] transition-all duration-200 cursor-pointer ${colorClass} ${isDone ? 'opacity-40 line-through' : ''}`;
                 li.onclick = () => openModal(todo.id);
                 
                 li.innerHTML = `
-                    <div onclick="event.stopPropagation(); fastToggleTodo('${todo.id}', ${isDone})" class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/80 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 transition-colors">
+                    <div onclick="event.stopPropagation(); fastToggleTodo('${todo.id}', ${isDone})" class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/90 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 active:scale-90 transition-all">
                         ${isDone ? '✓' : ''}
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between gap-2">
-                            <div class="text-sm font-semibold lowercase break-words leading-tight">${todo.title}</div>
-                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 active:text-rose-400 transition-colors text-sm font-bold -mt-3 -mr-3 p-3.5 cursor-pointer shrink-0 touch-manipulation">✕</button>
+                            <div class="text-sm font-bold tracking-tight text-gray-800 lowercase break-words leading-snug">${todo.title}</div>
+                            <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-500 font-bold -mt-3 -mr-3 p-3.5 cursor-pointer shrink-0 transition-colors">✕</button>
                         </div>
-                        <div class="flex items-center justify-between mt-1 text-[11px] font-medium tracking-tight text-purple-950/60 leading-none">
-                            <span>${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
-                            <span class="bg-white/60 px-2 py-0.5 rounded-md font-bold shadow-2xs">${countdown}</span>
+                        <div class="flex items-center justify-between mt-2 text-[10px] font-bold tracking-wider text-purple-950/50 uppercase leading-none">
+                            <span class="opacity-80">${displayTime ? '🕒 ' + displayTime : '📅 full day'}</span>
+                            <span class="bg-white/80 px-2 py-1 rounded-lg shadow-3xs text-[9px]">${countdown}</span>
                         </div>
                     </div>
                 `;
@@ -430,7 +446,7 @@
 
             for (let i = 0; i < firstDayIndex; i++) {
                 const blank = document.createElement('div');
-                blank.className = "bg-purple-50/10 rounded-xl border border-dashed border-purple-100/40 aspect-square";
+                blank.className = "bg-purple-50/5 rounded-2xl border border-dashed border-purple-100/20 aspect-square";
                 calendarDays.appendChild(blank);
             }
 
@@ -443,25 +459,25 @@
                 const dayExpenses = globalExpensesCache.filter(e => e.date === currentDayString);
                 const dayExpenseTotal = dayExpenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
             
-                let heatmapStyleClass = 'bg-gray-50/30';
-                if (dayExpenseTotal > 0 && dayExpenseTotal <= 20) heatmapStyleClass = 'background-color: #ffeff2;';
-                else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0;';
-                else if (dayExpenseTotal > 50) heatmapStyleClass = 'background-color: #fbcbf5;';
+                let heatmapStyleClass = 'bg-white/40 shadow-3xs';
+                if (dayExpenseTotal > 0 && dayExpenseTotal <= 20) heatmapStyleClass = 'background-color: #ffeff2; box-shadow: inset 0 0 0 1px rgba(255,214,220,0.4);';
+                else if (dayExpenseTotal > 20 && dayExpenseTotal <= 50) heatmapStyleClass = 'background-color: #ffd6e0; box-shadow: inset 0 0 0 1px rgba(255,180,195,0.5);';
+                else if (dayExpenseTotal > 50) heatmapStyleClass = 'background-color: #fbcbf5; box-shadow: inset 0 0 0 1px rgba(240,180,230,0.6);';
             
                 const pendingTasksCount = dayTasks.filter(t => !t.is_completed).length;
                 let borderThicknessClass = 'border'; 
-                let borderColorClass = 'border-gray-100';
+                let borderColorClass = 'border-gray-100/70';
             
                 if (pendingTasksCount > 0) {
-                    borderColorClass = 'border-purple-400';
-                    borderThicknessClass = pendingTasksCount === 1 ? 'border-2' : (pendingTasksCount === 2 ? 'border-4' : 'border-8');
+                    borderColorClass = 'border-purple-400/80';
+                    borderThicknessClass = pendingTasksCount === 1 ? 'border-2' : (pendingTasksCount === 2 ? 'border-[3px]' : 'border-[4px]');
                 }
             
-                dayBox.className = `p-2 rounded-xl ${borderThicknessClass} ${borderColorClass} flex flex-col items-center justify-center text-center text-xs font-medium transition-all aspect-square overflow-hidden cursor-pointer hover:scale-[1.02] ${isRealToday ? 'ring-2 ring-purple-100/50 bg-white' : ''}`;
+                dayBox.className = `p-1 rounded-2xl ${borderThicknessClass} ${borderColorClass} flex flex-col items-center justify-center text-center text-xs font-semibold transition-all aspect-square overflow-hidden cursor-pointer hover:scale-[1.05] hover:shadow-2xs ${isRealToday ? 'ring-2 ring-purple-400 bg-white shadow-2xs' : ''}`;
                 if (!isRealToday && dayExpenseTotal > 0) dayBox.style = heatmapStyleClass;
                 
                 dayBox.onclick = () => showDaySchedulePopup(currentDayString, dayTasks);
-                dayBox.innerHTML = `<span class="text-sm ${isRealToday ? 'text-purple-700 font-bold bg-white/80 px-1.5 py-0.5 rounded shadow-3xs' : 'text-gray-500'}">${day}</span>`;
+                dayBox.innerHTML = `<span class="text-xs ${isRealToday ? 'text-purple-700 font-extrabold bg-purple-50 px-2 py-0.5 rounded-lg' : 'text-gray-500'}">${day}</span>`;
                 calendarDays.appendChild(dayBox);
             }
         }
@@ -469,7 +485,6 @@
         // --- HIGH-PRECISION PIPELINE PARSER FOR PIPE SEPARATORS ---
         function parseExpenseInput(rawVal) {
             const cleanLine = rawVal.trim().toLowerCase();
-            
             if (!cleanLine.includes('|')) return null;
             
             const parts = cleanLine.split('|').map(p => p.trim());
@@ -558,47 +573,38 @@
             const isExpanded = expenseSection.classList.contains('md:flex-1');
             
             if (!isExpanded) {
-                // 1. Hide calendar, timeline, entry panel, and the base monthly toggle headers
                 calendarSection.classList.replace('md:flex', 'md:hidden');
                 timelineSection.classList.replace('flex', 'md:hidden');
                 if (headingRow) headingRow.classList.add('hidden');
                 if (inputArea) inputArea.classList.add('hidden');
                 
-                // 2. Expand card context panel across the layout framework
                 expenseSection.classList.replace('md:w-96', 'md:flex-1');
                 expenseSection.classList.add('md:max-h-[85vh]');
                 
-                // 3. Shift ledger layout container to standard horizontal dual columns
                 workspaceWrapper.classList.replace('flex-col', 'flex-row');
-                summaryBlock.className = "w-64 bg-gray-50/50 p-4 rounded-xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
+                summaryBlock.className = "w-72 bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
                 
                 zoomBtn.innerHTML = '<span>collapse view</span> ↙';
             } else {
-                // 1. Restore panels safely back into original system flow
                 calendarSection.classList.replace('md:hidden', 'md:flex');
                 timelineSection.classList.replace('md:hidden', 'flex');
                 if (headingRow) headingRow.classList.remove('hidden');
                 if (inputArea) inputArea.classList.remove('hidden');
                 
-                // 2. Clear out panel width guidelines
                 expenseSection.classList.replace('md:flex-1', 'md:w-96');
                 expenseSection.classList.remove('md:max-h-[85vh]');
                 
-                // 3. Reset ledger layout back into a single vertical sidebar column
                 workspaceWrapper.classList.replace('flex-row', 'flex-col');
-                summaryBlock.className = "bg-gray-50/50 p-3 rounded-xl border border-gray-100 shrink-0";
+                summaryBlock.className = "bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0";
                 
                 zoomBtn.innerHTML = '<span>expand view</span> ↗';
             }
             
             renderExpenses();
-            
-            if (typeof renderCalendarGrid === 'function') {
-                renderCalendarGrid();
-            }
+            if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
         };
 
-        // --- RENDER PIPELINE: GENERATES SIDEBAR TRANSITIONS OR FULL WIDTH TABLES ---
+        // --- RENDER PIPELINE ---
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
             expenseLedgerList.innerHTML = '';
@@ -617,7 +623,6 @@
                 if (totals[exp.category] !== undefined) totals[exp.category] += amt;
             });
 
-            // FIXED: Streamlined single line analytics rendering
             Object.keys(totals).forEach(cat => {
                 const categorySum = totals[cat];
                 if (categorySum === 0) return;
@@ -626,13 +631,13 @@
                 const meta = categoryMap[cat];
 
                 const block = document.createElement('div');
-                block.className = "mb-2 text-xs lowercase";
+                block.className = "text-xs lowercase";
                 block.innerHTML = `
-                    <div class="flex justify-between font-medium text-gray-600 items-center mb-0.5">
-                        <span class="flex items-center gap-1.5 font-bold"><span>${meta.emoji}</span> ${cat}</span>
+                    <div class="flex justify-between font-semibold text-gray-600 items-center mb-1">
+                        <span class="flex items-center gap-1.5 font-bold text-gray-700"><span>${meta.emoji}</span> ${cat}</span>
                         <span class="font-bold text-gray-500">$${categorySum.toFixed(2)} <span class="text-[10px] text-gray-400 font-normal">(${Math.round(pct)}%)</span></span>
                     </div>
-                    <div class="w-full bg-gray-200/40 h-1.5 rounded-full overflow-hidden">
+                    <div class="w-full bg-gray-200/50 h-2 rounded-full overflow-hidden shadow-4xs">
                         <div class="${meta.color} h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
                     </div>
                 `;
@@ -644,19 +649,19 @@
 
             if (isExpandedMode) {
                 const tableContainer = document.createElement('div');
-                tableContainer.className = "w-full h-full overflow-y-auto no-scrollbar border border-gray-100 rounded-xl bg-white";
+                tableContainer.className = "w-full h-full overflow-y-auto no-scrollbar border border-gray-100 rounded-2xl bg-white shadow-3xs";
                 
                 let tableHtml = `
                     <table class="w-full text-left border-collapse text-xs lowercase relative">
                         <thead>
-                            <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 z-10">
-                                <th class="p-3 w-24">date</th>
-                                <th class="p-3 w-36">category</th>
-                                <th class="p-3">description</th>
-                                <th class="p-3 w-28 text-right pr-6">amount</th>
+                            <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10">
+                                <th class="p-3.5 w-24 pl-5">date</th>
+                                <th class="p-3.5 w-36">category</th>
+                                <th class="p-3.5">description</th>
+                                <th class="p-3.5 w-28 text-right pr-6">amount</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50 font-medium text-gray-600">
+                        <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">
                 `;
 
                 activeExpenses.forEach(exp => {
@@ -664,20 +669,19 @@
                     const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
                     const [y, m, d] = exp.date.split('-');
                     
-                    // FIXED: Clicking anywhere on the row opens your editing modal panel directly
                     tableHtml += `
                         <tr onclick="openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
-                            <td class="p-3 text-gray-400 font-mono">${d}/${m}/${y}</td>
-                            <td class="p-3">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${meta.color} bg-opacity-70 text-[11px]">
+                            <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
+                            <td class="p-3.5">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl ${meta.color} bg-opacity-70 text-[11px] font-bold shadow-4xs">
                                     <span>${meta.emoji}</span> ${exp.category}
                                 </span>
                             </td>
-                            <td class="p-3 font-semibold text-gray-700">${exp.description}</td>
-                            <td class="p-3 text-right pr-4 font-bold text-gray-800">
+                            <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
+                            <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                                 <div class="flex items-center justify-end gap-2">
                                     <span>-$${amt.toFixed(2)}</span>
-                                    <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 hover:text-rose-400 font-bold p-1 cursor-pointer touch-manipulation text-sm transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                                    <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
                                 </div>
                             </td>
                         </tr>
@@ -685,7 +689,7 @@
                 });
 
                 if (activeExpenses.length === 0) {
-                    tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no logged expenses this month</td></tr>`;
+                    tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400 font-medium">no logged expenses this month</td></tr>`;
                 }
 
                 tableHtml += `</tbody></table>`;
@@ -699,19 +703,19 @@
                     const [y, m, d] = exp.date.split('-');
 
                     const li = document.createElement('li');
-                    li.className = "flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100 lowercase cursor-pointer hover:bg-gray-50 transition-colors";
+                    li.className = "flex items-center justify-between p-3 bg-gray-50/50 rounded-2xl border border-gray-100/70 lowercase shadow-3xs cursor-pointer hover:bg-white hover:shadow-2xs transition-all duration-150";
                     li.onclick = () => openExpenseModal(exp.id);
                     li.innerHTML = `
-                        <div class="min-w-0 flex-1 flex items-center gap-2.5">
-                            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-md shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
+                        <div class="min-w-0 flex-1 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 shadow-3xs ${meta.color}">${meta.emoji}</div>
                             <div class="min-w-0 flex-1">
-                                <div class="font-semibold text-gray-700 truncate leading-tight">${exp.description}</div>
-                                <div class="text-[10px] text-gray-400 mt-0.5">${d}/${m}/${y}</div>
+                                <div class="font-bold text-gray-700 truncate leading-tight">${exp.description}</div>
+                                <div class="text-[10px] text-gray-400 font-medium mt-0.5">${d}/${m}/${y}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-1 ml-2 shrink-0">
-                            <span class="font-bold text-gray-600 mr-1">-$${amt.toFixed(2)}</span>
-                            <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 active:text-rose-400 font-bold text-sm transition-colors cursor-pointer -my-3 -mr-2 p-3.5 touch-manipulation">✕</button>
+                            <span class="font-extrabold text-gray-700 mr-1">-$${amt.toFixed(2)}</span>
+                            <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold text-sm transition-colors cursor-pointer -my-3 -mr-2 p-3.5">✕</button>
                         </div>
                     `;
                     expenseLedgerList.appendChild(li);
@@ -725,7 +729,7 @@
             fetchAllData();
         };
 
-        // --- MODAL AND TAB UI ANIMATION UTILITIES ---
+        // --- MODAL AND TAB UI ENGINE ---
         function getModalSnapshot() {
             return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
                 .map(id => document.getElementById(id).value).join('|');
@@ -772,7 +776,6 @@
             const cat = document.getElementById('modal-expense-category').value;
         
             if (!d || isNaN(a) || !desc) return alert('all fields required.');
-        
             await supabaseClient.from('expenses').update({ date: d, amount: a, description: desc, category: cat }).eq('id', id);
             closeExpenseModal(); 
             fetchAllData();
@@ -788,18 +791,18 @@
             content.innerHTML = '';
         
             if (dayTasks.length === 0) {
-                content.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 lowercase">no tasks scheduled</div>';
+                content.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 font-medium lowercase">no tasks scheduled</div>';
             } else {
                 dayTasks.forEach(task => {
                     const timeParts = task.due_date.split(' ');
                     const tDisplay = timeParts[1] ? format12Hour(timeParts[1]) : 'full day';
                     const card = document.createElement('div');
-                    card.className = `p-3 rounded-xl border border-gray-100/70 flex items-center justify-between gap-3 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
+                    card.className = `p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 shadow-3xs hover:bg-white hover:shadow-2xs transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
                     card.onclick = () => { closeDaySchedulePopup(); openModal(task.id); };
                     card.innerHTML = `
                         <div class="min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-gray-700 truncate lowercase ${task.is_completed ? 'line-through text-gray-400' : ''}">${task.title}</div>
-                            <div class="text-[10px] text-purple-950/50 font-medium mt-0.5">🕒 ${tDisplay}</div>
+                            <div class="text-xs font-bold text-gray-700 truncate lowercase ${task.is_completed ? 'line-through text-gray-400' : ''}">${task.title}</div>
+                            <div class="text-[10px] text-purple-950/40 font-bold mt-1">🕒 ${tDisplay}</div>
                         </div>
                     `;
                     content.appendChild(card);
@@ -848,10 +851,10 @@
                 const sec = document.getElementById(`mobile-sec-${t}`);
                 if (!btn || !sec) return;
                 if (t === activeTab) {
-                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all pastel-purple-1 text-gray-700";
+                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all pastel-purple-1 text-purple-800 shadow-2xs";
                     sec.classList.remove('hidden'); sec.classList.add('flex');
                 } else {
-                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all text-gray-400 hover:text-gray-600";
+                    btn.className = "flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600";
                     sec.classList.add('hidden'); sec.classList.remove('flex');
                 }
             });
@@ -883,7 +886,6 @@
             fetchAllData();
         };
 
-        // Run Init Execution
         fetchAllData();
     </script>
 </body>
