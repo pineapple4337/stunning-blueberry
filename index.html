@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>to-dos 📚</title>
-    <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -299,11 +298,14 @@
         </div>
     </div>
 
-    <script>
+    <!-- MAIN APP SCRIPT -->
+    <script type="module">
+        import { APP_CONFIG, CATEGORY_MAP } from './config.js';
+
         // --- BASE CONNECTIONS ---
         const supabaseClient = supabase.createClient(
-            window.APP_CONFIG.SUPABASE_URL, 
-            window.APP_CONFIG.SUPABASE_ANON_KEY
+            APP_CONFIG.SUPABASE_URL, 
+            APP_CONFIG.SUPABASE_ANON_KEY
         );
 
         // --- DOM HOOKS ---
@@ -345,32 +347,22 @@
         let pendingDuplicatePayload = null; 
         
         let forceActiveCategoryHint = 'food & drink';
-        const categoryMap = {
-            'food & drink': { emoji: '🍔', color: 'bg-rose-200', btnId: 'cat-btn-food' },
-            'shopping':      { emoji: '🛍️', color: 'bg-amber-200', btnId: 'cat-btn-shop' },
-            'subscriptions': { emoji: '📺', color: 'bg-blue-200', btnId: 'cat-btn-sub' },
-            'events':        { emoji: '🎟️', color: 'bg-purple-200', btnId: 'cat-btn-evt' },
-            'fees':          { emoji: '💵', color: 'bg-emerald-200', btnId: 'cat-btn-fee' },
-            'health':        { emoji: '💊', color: 'bg-teal-200', btnId: 'cat-btn-hlth' },
-            'transport':     { emoji: '🚌', color: 'bg-indigo-200', btnId: 'cat-btn-trans' }
-        };
 
         // --- AUTHENTICATION & AUTO-TIMEOUT LOGIC ---
-        const INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 Minutes
         let inactivityTimer = null;
 
         function resetInactivityTimer() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
             supabaseClient.auth.getSession().then(({ data: { session } }) => {
                 if (session) {
-                    inactivityTimer = setTimeout(autoLogout, INACTIVITY_LIMIT_MS);
+                    inactivityTimer = setTimeout(autoLogout, APP_CONFIG.autoTimeoutMs || (15 * 60 * 1000));
                 }
             });
         }
 
         async function autoLogout() {
             await supabaseClient.auth.signOut();
-            alert("session expired due to 15 minutes of inactivity.");
+            alert("session expired due to inactivity.");
             window.location.reload();
         }
 
@@ -389,7 +381,7 @@
             }
         }
 
-        async function handleLogin(e) {
+        window.handleLogin = async function(e) {
             e.preventDefault();
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
@@ -413,13 +405,13 @@
                 fetchAllData();
                 resetInactivityTimer();
             }
-        }
+        };
 
-        async function handleLogout() {
+        window.handleLogout = async function() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
             await supabaseClient.auth.signOut();
             window.location.reload();
-        }
+        };
 
         // --- CATEGORY SELECTOR ENGINE ---
         window.setCategory = function(categoryName, emojiStr) {
@@ -427,12 +419,12 @@
             const contextLabel = document.getElementById('active-cat-display');
             if (contextLabel) contextLabel.innerHTML = `${emojiStr} ${categoryName}`;
             
-            Object.keys(categoryMap).forEach(key => {
-                const btn = document.getElementById(categoryMap[key].btnId);
+            Object.keys(CATEGORY_MAP).forEach(key => {
+                const btn = document.getElementById(CATEGORY_MAP[key].btnId);
                 if (btn) btn.className = "py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95";
             });
             
-            const targetBtn = document.getElementById(categoryMap[categoryName].btnId);
+            const targetBtn = document.getElementById(CATEGORY_MAP[categoryName]?.btnId);
             if (targetBtn) targetBtn.className = "py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95";
         };
 
@@ -572,22 +564,41 @@
             }
         }
 
-        function parseExpenseInput(rawVal) {
+        // --- EXPENSE PARSING ENGINE (SUPPORTING PIPE & SINGLE-LINE FALLBACK) ---
+        function parseExpenseInput(rawVal, defaultDate = null) {
             const cleanLine = rawVal.trim().toLowerCase();
-            if (!cleanLine.includes('|')) return null;
-            
-            const parts = cleanLine.split('|').map(p => p.trim());
-            if (parts.length < 4) return null;
-            
-            const date = parts[0];               
-            const amount = parseFloat(parts[1]); 
-            const category = parts[2];           
-            let description = parts[3];          
-            
-            if (isNaN(amount)) return null;
-            if (!description) description = "pasted transaction";
-            
-            return { date, amount, description, category };
+            const fallbackDate = defaultDate || `${actualToday.getFullYear()}-${String(actualToday.getMonth() + 1).padStart(2, '0')}-${String(actualToday.getDate()).padStart(2, '0')}`;
+
+            // Pipe-separated format
+            if (cleanLine.includes('|')) {
+                const parts = cleanLine.split('|').map(p => p.trim());
+                if (parts.length < 4) return null;
+                
+                const date = parts[0];               
+                const amount = parseFloat(parts[1]); 
+                const category = parts[2];           
+                let description = parts[3];          
+                
+                if (isNaN(amount)) return null;
+                if (!description) description = "pasted transaction";
+                
+                return { date, amount, description, category };
+            }
+
+            // Fallback: parse quick inputs (e.g., "12.50 lunch" or "lunch 12.50")
+            const numMatch = cleanLine.match(/(\d+(\.\d+)?)/);
+            if (numMatch) {
+                const amount = parseFloat(numMatch[0]);
+                const description = cleanLine.replace(numMatch[0], '').trim() || 'quick expense';
+                return {
+                    date: fallbackDate,
+                    amount: amount,
+                    description: description,
+                    category: forceActiveCategoryHint
+                };
+            }
+
+            return null;
         }
 
         expressExpenseForm.addEventListener('submit', async (e) => {
@@ -610,7 +621,7 @@
             }
 
             if (processedCount === 0) {
-                alert('formatting error: please use pipe-separated lines (e.g. yyyy-mm-dd | amount | category | description)');
+                alert('formatting error: please use pipe-separated lines (e.g. yyyy-mm-dd | amount | category | description) or standard amount text');
             }
             expressExpenseInput.value = ''; 
         });
@@ -697,7 +708,7 @@
             expenseVisualStats.innerHTML = '';
 
             let totals = {};
-            Object.keys(categoryMap).forEach(k => totals[k] = 0);
+            Object.keys(CATEGORY_MAP).forEach(k => totals[k] = 0);
             let totalCombinedAll = 0;
 
             const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
@@ -714,7 +725,7 @@
                 if (categorySum === 0) return;
                 
                 const pct = totalCombinedAll > 0 ? (categorySum / totalCombinedAll) * 100 : 0;
-                const meta = categoryMap[cat];
+                const meta = CATEGORY_MAP[cat] || { emoji: '📦', color: 'bg-purple-200' };
 
                 const block = document.createElement('div');
                 block.className = "text-xs lowercase";
@@ -752,7 +763,7 @@
 
                 activeExpenses.forEach(exp => {
                     const amt = parseFloat(exp.amount);
-                    const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+                    const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
                     const [y, m, d] = exp.date.split('-');
                     
                     tableHtml += `
@@ -785,7 +796,7 @@
             } else {
                 activeExpenses.forEach(exp => {
                     const amt = parseFloat(exp.amount);
-                    const meta = categoryMap[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+                    const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
                     const [y, m, d] = exp.date.split('-');
 
                     const li = document.createElement('li');
@@ -954,9 +965,9 @@
             if (!raw) return;
         
             if (type === 'expense') {
-                const res = parseExpenseInput(raw);
-                if (!res) return alert('for expenses, use pipe-delimited format: yyyy-mm-dd | amount | category | description');
-                evaluateAndLogExpense({ date: d, amount: res.amount, description: res.description, category: res.category });
+                const res = parseExpenseInput(raw, d);
+                if (!res) return alert('could not parse expense line.');
+                evaluateAndLogExpense({ date: res.date, amount: res.amount, description: res.description, category: res.category });
             } else {
                 if (!d) return alert('date selection required.');
                 await supabaseClient.from('todos').insert([{ title: raw, is_completed: false, due_date: t ? `${d} ${t}` : d, notes: '', progress: 0 }]);
