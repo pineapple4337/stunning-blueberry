@@ -889,6 +889,61 @@
         };
 
         fetchAllData();
+
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                fetchAllData(); // Fetch dashboard data only after authentication succeeds
+            } else {
+                document.getElementById('auth-overlay').classList.remove('hidden');
+            }
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorEl = document.getElementById('auth-error');
+            const submitBtn = document.getElementById('auth-submit-btn');
+        
+            submitBtn.innerText = 'verifying...';
+            errorEl.classList.add('hidden');
+        
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+        
+            if (error) {
+                errorEl.textContent = error.message.toLowerCase();
+                errorEl.classList.remove('hidden');
+                submitBtn.innerText = 'unlock app 🔓';
+            } else {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                fetchAllData();
+            }
+        }
+        
+        // Check session on initial app startup
+        checkSession();
     </script>
 </body>
+    <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-white/90 glass-card p-8 rounded-3xl w-full max-w-sm shadow-2xl flex flex-col items-center border border-white/40">
+            <div class="text-4xl mb-2">📚</div>
+            <h2 class="text-xl font-extrabold text-gray-800 mb-1">welcome back</h2>
+            <p class="text-xs text-gray-500 mb-6 lowercase">enter your passcode to unlock to-dos</p>
+            
+            <form id="auth-form" onsubmit="handleLogin(event)" class="w-full space-y-3">
+                <input type="email" id="auth-email" placeholder="email address" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
+                <input type="password" id="auth-password" placeholder="password" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
+                
+                <button type="submit" id="auth-submit-btn" class="w-full h-10 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer">
+                    unlock app 🔓
+                </button>
+            </form>
+            <p id="auth-error" class="text-xs font-bold text-rose-500 mt-3 hidden"></p>
+        </div>
+    </div>
 </html>
