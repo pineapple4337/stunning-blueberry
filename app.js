@@ -1,6 +1,11 @@
+// app.js
 import { APP_CONFIG, CATEGORY_MAP } from './config.js';
 
 // --- BASE CONNECTIONS ---
+if (typeof supabase === 'undefined') {
+    console.error('Supabase CDN script is missing or failed to load before app.js');
+}
+
 const supabaseClient = supabase.createClient(
     APP_CONFIG.SUPABASE_URL, 
     APP_CONFIG.SUPABASE_ANON_KEY
@@ -35,10 +40,12 @@ const pinkPurpleColors = ['pastel-pink-1', 'pastel-purple-1', 'pastel-orchid', '
 const actualToday = new Date();
 let displayDate = new Date(); 
 
-const year = actualToday.getFullYear();
-const month = String(actualToday.getMonth() + 1).padStart(2, '0'); 
-const day = String(actualToday.getDate()).padStart(2, '0');
-todoDate.value = `${year}-${month}-${day}`;
+if (todoDate) {
+    const year = actualToday.getFullYear();
+    const month = String(actualToday.getMonth() + 1).padStart(2, '0'); 
+    const day = String(actualToday.getDate()).padStart(2, '0');
+    todoDate.value = `${year}-${month}-${day}`;
+}
 
 let globalTodosCache = [];
 let globalExpensesCache = [];
@@ -70,12 +77,13 @@ async function autoLogout() {
 
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
+    const authOverlay = document.getElementById('auth-overlay');
     if (session) {
-        document.getElementById('auth-overlay').classList.add('hidden');
+        if (authOverlay) authOverlay.classList.add('hidden');
         fetchAllData();
         resetInactivityTimer();
     } else {
-        document.getElementById('auth-overlay').classList.remove('hidden');
+        if (authOverlay) authOverlay.classList.remove('hidden');
     }
 }
 
@@ -86,22 +94,34 @@ window.handleLogin = async function(e) {
     const errorEl = document.getElementById('auth-error');
     const submitBtn = document.getElementById('auth-submit-btn');
 
-    submitBtn.innerText = 'verifying...';
-    errorEl.classList.add('hidden');
+    if (submitBtn) submitBtn.innerText = 'verifying...';
+    if (errorEl) errorEl.classList.add('hidden');
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
 
-    if (error) {
-        errorEl.textContent = error.message.toLowerCase();
-        errorEl.classList.remove('hidden');
-        submitBtn.innerText = 'unlock app 🔓';
-    } else {
-        document.getElementById('auth-overlay').classList.add('hidden');
-        fetchAllData();
-        resetInactivityTimer();
+        if (error) {
+            if (errorEl) {
+                errorEl.textContent = error.message.toLowerCase();
+                errorEl.classList.remove('hidden');
+            }
+            if (submitBtn) submitBtn.innerText = 'unlock app 🔓';
+        } else {
+            const authOverlay = document.getElementById('auth-overlay');
+            if (authOverlay) authOverlay.classList.add('hidden');
+            fetchAllData();
+            resetInactivityTimer();
+        }
+    } catch (err) {
+        console.error("Login failure:", err);
+        if (errorEl) {
+            errorEl.textContent = "connection error during login.";
+            errorEl.classList.remove('hidden');
+        }
+        if (submitBtn) submitBtn.innerText = 'unlock app 🔓';
     }
 };
 
@@ -118,18 +138,23 @@ window.setCategory = function(categoryName, emojiStr) {
     if (contextLabel) contextLabel.innerHTML = `${emojiStr} ${categoryName}`;
     
     Object.keys(CATEGORY_MAP).forEach(key => {
-        const btn = document.getElementById(CATEGORY_MAP[key].btnId);
-        if (btn) btn.className = "py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95";
+        if (CATEGORY_MAP[key].btnId) {
+            const btn = document.getElementById(CATEGORY_MAP[key].btnId);
+            if (btn) btn.className = "py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95";
+        }
     });
     
-    const targetBtn = document.getElementById(CATEGORY_MAP[categoryName]?.btnId);
-    if (targetBtn) targetBtn.className = "py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95";
+    const targetBtnId = CATEGORY_MAP[categoryName]?.btnId;
+    if (targetBtnId) {
+        const targetBtn = document.getElementById(targetBtnId);
+        if (targetBtn) targetBtn.className = "py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95";
+    }
 };
 
 function format12Hour(timeStr) {
     if (!timeStr) return '';
     const [hours, minutes] = timeStr.split(':');
-    let h = parseInt(hours);
+    let h = parseInt(hours, 10);
     const ampm = h >= 12 ? 'pm' : 'am';
     h = h % 12 || 12;
     return `${h}:${minutes} ${ampm}`;
@@ -138,7 +163,7 @@ function format12Hour(timeStr) {
 function getCountdownText(dueDateStr) {
     if (!dueDateStr) return '';
     const parts = dueDateStr.split(' ');
-    const [y, m, d] = parts[0].split('-').map(num => parseInt(num));
+    const [y, m, d] = parts[0].split('-').map(num => parseInt(num, 10));
     const targetDateClean = new Date(y, m - 1, d);
     const todayClean = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate());
     const differenceInDays = Math.ceil((targetDateClean.getTime() - todayClean.getTime()) / (1000 * 3600 * 24));
@@ -173,6 +198,7 @@ async function fetchAllData() {
 }
 
 function renderDashboard() {
+    if (!todoList) return;
     todoList.innerHTML = '';
     if (loadingState) loadingState.classList.add('hidden');
     todoList.classList.remove('hidden');
@@ -262,12 +288,11 @@ function renderCalendarGrid() {
     }
 }
 
-// --- EXPENSE PARSING ENGINE (SUPPORTING PIPE & SINGLE-LINE FALLBACK) ---
+// --- EXPENSE PARSING ENGINE ---
 function parseExpenseInput(rawVal, defaultDate = null) {
     const cleanLine = rawVal.trim().toLowerCase();
     const fallbackDate = defaultDate || `${actualToday.getFullYear()}-${String(actualToday.getMonth() + 1).padStart(2, '0')}-${String(actualToday.getDate()).padStart(2, '0')}`;
 
-    // Pipe-separated format
     if (cleanLine.includes('|')) {
         const parts = cleanLine.split('|').map(p => p.trim());
         if (parts.length < 4) return null;
@@ -283,7 +308,6 @@ function parseExpenseInput(rawVal, defaultDate = null) {
         return { date, amount, description, category };
     }
 
-    // Fallback: parse quick inputs (e.g., "12.50 lunch" or "lunch 12.50")
     const numMatch = cleanLine.match(/(\d+(\.\d+)?)/);
     if (numMatch) {
         const amount = parseFloat(numMatch[0]);
@@ -299,30 +323,32 @@ function parseExpenseInput(rawVal, defaultDate = null) {
     return null;
 }
 
-expressExpenseForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const rawClipboardContent = expressExpenseInput.value;
-    const lines = rawClipboardContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    let processedCount = 0;
+if (expressExpenseForm) {
+    expressExpenseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const rawClipboardContent = expressExpenseInput ? expressExpenseInput.value : '';
+        const lines = rawClipboardContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let processedCount = 0;
 
-    for (const line of lines) {
-        const result = parseExpenseInput(line);
-        if (result) {
-            evaluateAndLogExpense({
-                date: result.date,             
-                amount: result.amount,
-                description: result.description.toLowerCase(), 
-                category: result.category
-            });
-            processedCount++;
+        for (const line of lines) {
+            const result = parseExpenseInput(line);
+            if (result) {
+                evaluateAndLogExpense({
+                    date: result.date,             
+                    amount: result.amount,
+                    description: result.description.toLowerCase(), 
+                    category: result.category
+                });
+                processedCount++;
+            }
         }
-    }
 
-    if (processedCount === 0) {
-        alert('formatting error: please use pipe-separated lines (e.g. yyyy-mm-dd | amount | category | description) or standard amount text');
-    }
-    expressExpenseInput.value = ''; 
-});
+        if (processedCount === 0) {
+            alert('formatting error: please use pipe-separated lines (e.g. yyyy-mm-dd | amount | category | description) or standard amount text');
+        }
+        if (expressExpenseInput) expressExpenseInput.value = ''; 
+    });
+}
 
 function evaluateAndLogExpense(payload) {
     const isDuplicate = globalExpensesCache.find(exp => {
@@ -333,8 +359,10 @@ function evaluateAndLogExpense(payload) {
 
     if (isDuplicate) {
         pendingDuplicatePayload = payload;
-        document.getElementById('duplicate-toast-msg').textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) matches a logged entry.`;
-        document.getElementById('duplicate-toast').classList.remove('hidden');
+        const msgEl = document.getElementById('duplicate-toast-msg');
+        const toastEl = document.getElementById('duplicate-toast');
+        if (msgEl) msgEl.textContent = `"${payload.description}" ($${payload.amount.toFixed(2)}) matches a logged entry.`;
+        if (toastEl) toastEl.classList.remove('hidden');
     } else {
         executeInsertExpense(payload);
     }
@@ -353,7 +381,8 @@ window.forceInsertDuplicate = function() {
 
 window.dismissDuplicate = function() {
     pendingDuplicatePayload = null;
-    document.getElementById('duplicate-toast').classList.add('hidden');
+    const toastEl = document.getElementById('duplicate-toast');
+    if (toastEl) toastEl.classList.add('hidden');
 };
 
 window.toggleLedgerFullscreen = function() {
@@ -366,38 +395,39 @@ window.toggleLedgerFullscreen = function() {
     const summaryBlock = document.getElementById('summary-card-block');
     const zoomBtn = document.getElementById('ledger-zoom-btn');
     
+    if (!expenseSection) return;
     const isExpanded = expenseSection.classList.contains('md:flex-1');
     
     if (!isExpanded) {
-        calendarSection.classList.replace('md:flex', 'md:hidden');
-        timelineSection.classList.replace('flex', 'md:hidden');
+        if (calendarSection) calendarSection.classList.replace('md:flex', 'md:hidden');
+        if (timelineSection) timelineSection.classList.replace('flex', 'md:hidden');
         if (headingRow) headingRow.classList.add('hidden');
         if (inputArea) inputArea.classList.add('hidden');
         
         expenseSection.classList.replace('md:w-96', 'md:flex-1');
         expenseSection.classList.add('md:max-h-[85vh]');
         
-        workspaceWrapper.classList.replace('flex-col', 'flex-row');
-        summaryBlock.className = "w-72 bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
+        if (workspaceWrapper) workspaceWrapper.classList.replace('flex-col', 'flex-row');
+        if (summaryBlock) summaryBlock.className = "w-72 bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
         
-        zoomBtn.innerHTML = '<span>collapse view</span> ↙';
+        if (zoomBtn) zoomBtn.innerHTML = '<span>collapse view</span> ↙';
     } else {
-        calendarSection.classList.replace('md:hidden', 'md:flex');
-        timelineSection.classList.replace('md:hidden', 'flex');
+        if (calendarSection) calendarSection.classList.replace('md:hidden', 'md:flex');
+        if (timelineSection) timelineSection.classList.replace('md:hidden', 'flex');
         if (headingRow) headingRow.classList.remove('hidden');
         if (inputArea) inputArea.classList.remove('hidden');
         
         expenseSection.classList.replace('md:flex-1', 'md:w-96');
         expenseSection.classList.remove('md:max-h-[85vh]');
         
-        workspaceWrapper.classList.replace('flex-row', 'flex-col');
-        summaryBlock.className = "bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0";
+        if (workspaceWrapper) workspaceWrapper.classList.replace('flex-row', 'flex-col');
+        if (summaryBlock) summaryBlock.className = "bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0";
         
-        zoomBtn.innerHTML = '<span>expand view</span> ↗';
+        if (zoomBtn) zoomBtn.innerHTML = '<span>expand view</span> ↗';
     }
     
     renderExpenses();
-    if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
+    renderCalendarGrid();
 };
 
 function renderExpenses() {
@@ -526,48 +556,65 @@ window.deleteExpense = async function(id) {
 
 function getModalSnapshot() {
     return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
-        .map(id => document.getElementById(id).value).join('|');
+        .map(id => {
+            const el = document.getElementById(id);
+            return el ? el.value : '';
+        }).join('|');
 }
 
 window.openModal = function(id) {
     const todo = globalTodosCache.find(t => t.id === id);
     if (!todo) return;
-    modalTaskId.value = todo.id;
-    modalTaskTitle.value = todo.title;
-    modalTaskNotes.value = todo.notes || '';
+    if (modalTaskId) modalTaskId.value = todo.id;
+    if (modalTaskTitle) modalTaskTitle.value = todo.title;
+    if (modalTaskNotes) modalTaskNotes.value = todo.notes || '';
     const parts = todo.due_date ? todo.due_date.split(' ') : ['', ''];
-    modalTaskDate.value = parts[0] || '';
-    modalTaskTime.value = parts[1] || '';
+    if (modalTaskDate) modalTaskDate.value = parts[0] || '';
+    if (modalTaskTime) modalTaskTime.value = parts[1] || '';
     const pct = todo.progress || (todo.is_completed ? 100 : 0);
-    modalTaskProgress.value = pct;
-    modalSliderValue.textContent = pct + '%';
-    modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${pct}%, #e5e7eb ${pct}%)`;
+    if (modalTaskProgress) {
+        modalTaskProgress.value = pct;
+        modalTaskProgress.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${pct}%, #e5e7eb ${pct}%)`;
+    }
+    if (modalSliderValue) modalSliderValue.textContent = pct + '%';
     
-    taskModal.classList.remove('hidden');
+    if (taskModal) taskModal.classList.remove('hidden');
     window.originalModalSnapshotString = getModalSnapshot();
 };
 
-window.closeModal = () => taskModal.classList.add('hidden');
+window.closeModal = () => {
+    if (taskModal) taskModal.classList.add('hidden');
+};
 
 window.openExpenseModal = function(id) {
     const exp = globalExpensesCache.find(e => e.id === id);
     if (!exp) return;
-    document.getElementById('modal-expense-id').value = exp.id;
-    document.getElementById('modal-expense-date').value = exp.date || '';
-    document.getElementById('modal-expense-amount').value = exp.amount || '';
-    document.getElementById('modal-expense-description').value = exp.description || '';
-    document.getElementById('modal-expense-category').value = exp.category || 'food & drink';
-    document.getElementById('expense-modal').classList.remove('hidden');
+    const idEl = document.getElementById('modal-expense-id');
+    const dateEl = document.getElementById('modal-expense-date');
+    const amtEl = document.getElementById('modal-expense-amount');
+    const descEl = document.getElementById('modal-expense-description');
+    const catEl = document.getElementById('modal-expense-category');
+    const modalEl = document.getElementById('expense-modal');
+
+    if (idEl) idEl.value = exp.id;
+    if (dateEl) dateEl.value = exp.date || '';
+    if (amtEl) amtEl.value = exp.amount || '';
+    if (descEl) descEl.value = exp.description || '';
+    if (catEl) catEl.value = exp.category || 'food & drink';
+    if (modalEl) modalEl.classList.remove('hidden');
 };
 
-window.closeExpenseModal = () => document.getElementById('expense-modal').classList.add('hidden');
+window.closeExpenseModal = () => {
+    const modalEl = document.getElementById('expense-modal');
+    if (modalEl) modalEl.classList.add('hidden');
+};
 
 window.saveExpenseModalChanges = async function() {
-    const id = document.getElementById('modal-expense-id').value;
-    const d = document.getElementById('modal-expense-date').value;
-    const a = parseFloat(document.getElementById('modal-expense-amount').value);
-    const desc = document.getElementById('modal-expense-description').value.trim().toLowerCase();
-    const cat = document.getElementById('modal-expense-category').value;
+    const id = document.getElementById('modal-expense-id')?.value;
+    const d = document.getElementById('modal-expense-date')?.value;
+    const a = parseFloat(document.getElementById('modal-expense-amount')?.value);
+    const desc = document.getElementById('modal-expense-description')?.value.trim().toLowerCase();
+    const cat = document.getElementById('modal-expense-category')?.value;
 
     if (!d || isNaN(a) || !desc) return alert('all fields required.');
     await supabaseClient.from('expenses').update({ date: d, amount: a, description: desc, category: cat }).eq('id', id);
@@ -580,6 +627,8 @@ window.showDaySchedulePopup = function(dateStr, dayTasks) {
     const headerTitle = document.getElementById('popup-schedule-date');
     const content = document.getElementById('popup-schedule-content');
 
+    if (!popup || !headerTitle || !content) return;
+
     const [y, m, d] = dateStr.split('-');
     headerTitle.textContent = `schedule: ${d}/${m}/${y}`;
     content.innerHTML = '';
@@ -588,7 +637,7 @@ window.showDaySchedulePopup = function(dateStr, dayTasks) {
         content.innerHTML = '<div class="text-center py-6 text-xs text-gray-400 font-medium lowercase">no tasks scheduled</div>';
     } else {
         dayTasks.forEach(task => {
-            const timeParts = task.due_date.split(' ');
+            const timeParts = task.due_date ? task.due_date.split(' ') : [];
             const tDisplay = timeParts[1] ? format12Hour(timeParts[1]) : 'full day';
             const card = document.createElement('div');
             card.className = `p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 shadow-3xs hover:bg-white hover:shadow-2xs transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer ${task.is_completed ? 'opacity-50' : ''}`;
@@ -605,7 +654,10 @@ window.showDaySchedulePopup = function(dateStr, dayTasks) {
     popup.classList.remove('hidden');
 };
 
-window.closeDaySchedulePopup = () => document.getElementById('calendar-day-popup').classList.add('hidden');
+window.closeDaySchedulePopup = () => {
+    const popup = document.getElementById('calendar-day-popup');
+    if (popup) popup.classList.add('hidden');
+};
 
 window.handleModalOutsideClick = function(event) {
     if (window.originalModalSnapshotString === getModalSnapshot()) { closeModal(); return; }
@@ -614,15 +666,22 @@ window.handleModalOutsideClick = function(event) {
 };
 
 window.saveModalChanges = async function() {
-    const id = modalTaskId.value;
-    const title = modalTaskTitle.value.trim().toLowerCase();
-    const d = modalTaskDate.value;
-    const t = modalTaskTime.value;
-    const notes = modalTaskNotes.value;
-    const prog = parseInt(modalTaskProgress.value);
+    const id = modalTaskId?.value;
+    const title = modalTaskTitle?.value.trim().toLowerCase();
+    const d = modalTaskDate?.value;
+    const t = modalTaskTime?.value;
+    const notes = modalTaskNotes?.value;
+    const prog = parseInt(modalTaskProgress?.value || '0', 10);
     if (!title || !d) return alert('description and date required.');
 
-    await supabaseClient.from('todos').update({ title, due_date: t ? `${d} ${t}` : d, notes, progress: prog, is_completed: (prog === 100) }).eq('id', id);
+    await supabaseClient.from('todos').update({ 
+        title, 
+        due_date: t ? `${d} ${t}` : d, 
+        notes, 
+        progress: prog, 
+        is_completed: (prog === 100) 
+    }).eq('id', id);
+    
     closeModal(); 
     fetchAllData();
 };
@@ -654,25 +713,29 @@ window.switchMobileTab = function(activeTab) {
     });
 };
 
-todoForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const type = document.getElementById('entry-type').value;
-    const raw = todoInput.value.trim().toLowerCase();
-    const d = todoDate.value;
-    const t = todoTime.value;
-    if (!raw) return;
+if (todoForm) {
+    todoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const typeEl = document.getElementById('entry-type');
+        const type = typeEl ? typeEl.value : 'todo';
+        const raw = todoInput ? todoInput.value.trim().toLowerCase() : '';
+        const d = todoDate ? todoDate.value : '';
+        const t = todoTime ? todoTime.value : '';
+        if (!raw) return;
 
-    if (type === 'expense') {
-        const res = parseExpenseInput(raw, d);
-        if (!res) return alert('could not parse expense line.');
-        evaluateAndLogExpense({ date: res.date, amount: res.amount, description: res.description, category: res.category });
-    } else {
-        if (!d) return alert('date selection required.');
-        await supabaseClient.from('todos').insert([{ title: raw, is_completed: false, due_date: t ? `${d} ${t}` : d, notes: '', progress: 0 }]);
-    }
-    todoInput.value = ''; todoTime.value = '';
-    fetchAllData();
-});
+        if (type === 'expense') {
+            const res = parseExpenseInput(raw, d);
+            if (!res) return alert('could not parse expense line.');
+            evaluateAndLogExpense({ date: res.date, amount: res.amount, description: res.description, category: res.category });
+        } else {
+            if (!d) return alert('date selection required.');
+            await supabaseClient.from('todos').insert([{ title: raw, is_completed: false, due_date: t ? `${d} ${t}` : d, notes: '', progress: 0 }]);
+        }
+        if (todoInput) todoInput.value = ''; 
+        if (todoTime) todoTime.value = '';
+        fetchAllData();
+    });
+}
 
 window.deleteTodo = async function(id) {
     if (!window.confirm("delete this task?")) return;
