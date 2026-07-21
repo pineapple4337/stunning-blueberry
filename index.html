@@ -12,41 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="to-dos 📚">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: radial-gradient(circle at top right, rgba(232, 219, 252, 0.15), transparent 400px),
-                        radial-gradient(circle at bottom left, rgba(255, 214, 224, 0.15), transparent 400px),
-                        #fafafa; 
-            overscroll-behavior-y: contain; 
-        }
-        .pastel-pink-1 { background-color: #ffd6e0; }
-        .pastel-pink-2 { background-color: #ffeff2; }
-        .pastel-purple-1 { background-color: #e8dbfc; }
-        .pastel-purple-2 { background-color: #f3ebff; }
-        .pastel-orchid { background-color: #fbcbf5; }
-        .pastel-blue { background-color: #d6eaff; }
-        .pastel-mint { background-color: #e1f7ec; }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-        }
-
-        @media (max-width: 767px) {
-            body { height: auto !important; overflow-x: hidden; overscroll-behavior-y: contain; }
-            main { flex-direction: column !important; overflow: visible !important; height: auto !important; }
-            #mobile-sec-calendar, #mobile-sec-timeline, #mobile-sec-expenses { height: auto !important; max-height: none !important; }
-            ul#todo-list { overflow: visible !important; max-height: none !important; }
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans relative antialiased selection:bg-purple-100">
 
