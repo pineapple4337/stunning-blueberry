@@ -51,6 +51,26 @@
 </head>
 <body class="flex flex-col h-screen text-gray-700 font-sans relative antialiased selection:bg-purple-100">
 
+    <!-- AUTHENTICATION OVERLAY MODAL -->
+    <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-white/90 glass-card p-8 rounded-3xl w-full max-w-sm shadow-2xl flex flex-col items-center border border-white/40">
+            <div class="text-4xl mb-2">📚</div>
+            <h2 class="text-xl font-extrabold text-gray-800 mb-1">welcome back</h2>
+            <p class="text-xs text-gray-500 mb-6 lowercase">enter your credentials to unlock to-dos</p>
+            
+            <form id="auth-form" onsubmit="handleLogin(event)" class="w-full space-y-3">
+                <input type="email" id="auth-email" placeholder="email address" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
+                <input type="password" id="auth-password" placeholder="password" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
+                
+                <button type="submit" id="auth-submit-btn" class="w-full h-10 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer">
+                    unlock app 🔓
+                </button>
+            </form>
+            <p id="auth-error" class="text-xs font-bold text-rose-500 mt-3 hidden"></p>
+        </div>
+    </div>
+
+    <!-- DUPLICATE TOAST -->
     <div id="duplicate-toast" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all scale-95 duration-200">
         <div class="flex items-start gap-3">
             <span class="text-xl">⚠️</span>
@@ -65,11 +85,15 @@
         </div>
     </div>
 
+    <!-- HEADER -->
     <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-3xs shrink-0">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
             <div class="flex items-center justify-between w-full lg:w-auto">
                 <h1 onclick="window.location.reload()" class="text-2xl font-black tracking-tight bg-gradient-to-r from-purple-600 via-pink-500 to-rose-400 bg-clip-text text-transparent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity active:scale-98 transform duration-150">to-dos 📚</h1>
-                <span id="task-count" class="lg:hidden px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="handleLogout()" class="text-xs font-bold text-gray-400 hover:text-rose-500 px-2 py-1 rounded-lg border border-gray-100 hover:bg-rose-50 transition-all cursor-pointer">lock 🔒</button>
+                    <span id="task-count" class="lg:hidden px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
+                </div>
             </div>
             
             <form id="todo-form" class="bg-gray-50/60 p-1.5 rounded-2xl border border-gray-100 shadow-3xs w-full lg:max-w-3xl">
@@ -101,8 +125,8 @@
         <button id="tab-btn-expenses" onclick="switchMobileTab('expenses')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600">expenses 💰</button>
     </div>
 
+    <!-- MAIN DASHBOARD CONTENT -->
     <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-6 gap-6 min-h-0">
-        
         <section id="mobile-sec-calendar" class="hidden md:flex html-calendar-grid flex-col flex-1 glass-card rounded-3xl p-6 shadow-sm overflow-hidden transition-all duration-300">
             <div class="flex items-center justify-between mb-5">
                 <h2 id="calendar-month-year" class="text-xl font-extrabold text-gray-800 tracking-tight lowercase">...</h2>
@@ -137,7 +161,7 @@
             
             <div id="ledger-input-area" class="mb-5 space-y-3 shrink-0">
                 <form id="express-expense-form" class="flex flex-col gap-2">
-                    <textarea id="express-expense-input" rows="2" placeholder="paste parameters from raw chat logs here..." required class="w-full px-4 py-3 text-xs lowercase bg-gray-50/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-400 font-medium leading-relaxed"></textarea>
+                    <textarea id="express-expense-input" rows="2" placeholder="paste pipe-separated entries (yyyy-mm-dd | amount | category | description)..." required class="w-full px-4 py-3 text-xs lowercase bg-gray-50/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-400 font-medium leading-relaxed"></textarea>
                     <button type="submit" class="w-full py-2.5 text-xs font-bold text-emerald-800 pastel-mint rounded-xl shadow-2xs hover:opacity-90 active:scale-98 transition-all cursor-pointer">clean & log entry</button>
                 </form>
                 
@@ -156,7 +180,6 @@
             </div>
 
             <div id="ledger-workspace-wrapper" class="flex flex-col flex-1 min-h-0 gap-5">
-                
                 <div id="summary-card-block" class="bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0">
                     <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-3">monthly summary</div>
                     <div id="expense-visual-stats" class="space-y-3.5"></div>
@@ -174,13 +197,11 @@
                         <ul id="expense-ledger-list" class="space-y-2.5 text-xs"></ul>
                     </div>
                 </div>
-
             </div>
         </section>
-
     </main>
 
-    <!-- Task Modal Styling Modernization -->
+    <!-- TASK MODAL -->
     <div id="task-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="handleModalOutsideClick(event)">
         <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
@@ -224,7 +245,7 @@
         </div>
     </div>
 
-    <!-- Expense Modal Modification -->
+    <!-- EXPENSE MODAL -->
     <div id="expense-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeExpenseModal()">
         <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -267,7 +288,7 @@
         </div>
     </div>
 
-    <!-- Day schedule popup modal adjustment -->
+    <!-- CALENDAR DAY POPUP -->
     <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeDaySchedulePopup()">
         <div class="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
@@ -285,7 +306,7 @@
             window.APP_CONFIG.SUPABASE_ANON_KEY
         );
 
-        // --- DOM REFERENCE HOOKS ---
+        // --- DOM HOOKS ---
         const todoForm = document.getElementById('todo-form');
         const todoInput = document.getElementById('todo-input');
         const todoDate = document.getElementById('todo-date');
@@ -334,6 +355,73 @@
             'transport':     { emoji: '🚌', color: 'bg-indigo-200', btnId: 'cat-btn-trans' }
         };
 
+        // --- AUTHENTICATION & AUTO-TIMEOUT LOGIC ---
+        const INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 Minutes
+        let inactivityTimer = null;
+
+        function resetInactivityTimer() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    inactivityTimer = setTimeout(autoLogout, INACTIVITY_LIMIT_MS);
+                }
+            });
+        }
+
+        async function autoLogout() {
+            await supabaseClient.auth.signOut();
+            alert("session expired due to 15 minutes of inactivity.");
+            window.location.reload();
+        }
+
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+        });
+
+        async function checkSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                fetchAllData();
+                resetInactivityTimer();
+            } else {
+                document.getElementById('auth-overlay').classList.remove('hidden');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorEl = document.getElementById('auth-error');
+            const submitBtn = document.getElementById('auth-submit-btn');
+
+            submitBtn.innerText = 'verifying...';
+            errorEl.classList.add('hidden');
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                errorEl.textContent = error.message.toLowerCase();
+                errorEl.classList.remove('hidden');
+                submitBtn.innerText = 'unlock app 🔓';
+            } else {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                fetchAllData();
+                resetInactivityTimer();
+            }
+        }
+
+        async function handleLogout() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        }
+
+        // --- CATEGORY SELECTOR ENGINE ---
         window.setCategory = function(categoryName, emojiStr) {
             forceActiveCategoryHint = categoryName;
             const contextLabel = document.getElementById('active-cat-display');
@@ -484,7 +572,6 @@
             }
         }
 
-        // --- HIGH-PRECISION PIPELINE PARSER FOR PIPE SEPARATORS ---
         function parseExpenseInput(rawVal) {
             const cleanLine = rawVal.trim().toLowerCase();
             if (!cleanLine.includes('|')) return null;
@@ -503,7 +590,6 @@
             return { date, amount, description, category };
         }
 
-        // --- MULTI-LINE TRANSACTION PARSING ROUTER ---
         expressExpenseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const rawClipboardContent = expressExpenseInput.value;
@@ -524,7 +610,7 @@
             }
 
             if (processedCount === 0) {
-                alert('could not isolate any transaction details. check formatting syntax.');
+                alert('formatting error: please use pipe-separated lines (e.g. yyyy-mm-dd | amount | category | description)');
             }
             expressExpenseInput.value = ''; 
         });
@@ -561,7 +647,6 @@
             document.getElementById('duplicate-toast').classList.add('hidden');
         };
 
-        // --- LAPTOP LEDGER SIDEBAR WORKSPACE CONVERSION ENGINE ---
         window.toggleLedgerFullscreen = function() {
             const expenseSection = document.getElementById('mobile-sec-expenses');
             const calendarSection = document.getElementById('mobile-sec-calendar');
@@ -606,7 +691,6 @@
             if (typeof renderCalendarGrid === 'function') renderCalendarGrid();
         };
 
-        // --- RENDER PIPELINE ---
         function renderExpenses() {
             if (!expenseLedgerList || !expenseVisualStats) return;
             expenseLedgerList.innerHTML = '';
@@ -731,7 +815,6 @@
             fetchAllData();
         };
 
-        // --- MODAL AND TAB UI ENGINE ---
         function getModalSnapshot() {
             return ['modal-task-title', 'modal-task-date', 'modal-task-time', 'modal-task-notes', 'modal-task-progress']
                 .map(id => document.getElementById(id).value).join('|');
@@ -872,7 +955,7 @@
         
             if (type === 'expense') {
                 const res = parseExpenseInput(raw);
-                if (!res) return alert('start with a number for expenses (e.g. 3.92 fries)');
+                if (!res) return alert('for expenses, use pipe-delimited format: yyyy-mm-dd | amount | category | description');
                 evaluateAndLogExpense({ date: d, amount: res.amount, description: res.description, category: res.category });
             } else {
                 if (!d) return alert('date selection required.');
@@ -888,62 +971,8 @@
             fetchAllData();
         };
 
-        fetchAllData();
-
-        async function checkSession() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                document.getElementById('auth-overlay').classList.add('hidden');
-                fetchAllData(); // Fetch dashboard data only after authentication succeeds
-            } else {
-                document.getElementById('auth-overlay').classList.remove('hidden');
-            }
-        }
-        
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const errorEl = document.getElementById('auth-error');
-            const submitBtn = document.getElementById('auth-submit-btn');
-        
-            submitBtn.innerText = 'verifying...';
-            errorEl.classList.add('hidden');
-        
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password,
-            });
-        
-            if (error) {
-                errorEl.textContent = error.message.toLowerCase();
-                errorEl.classList.remove('hidden');
-                submitBtn.innerText = 'unlock app 🔓';
-            } else {
-                document.getElementById('auth-overlay').classList.add('hidden');
-                fetchAllData();
-            }
-        }
-        
-        // Check session on initial app startup
+        // Initialize session check on load
         checkSession();
     </script>
 </body>
-    <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4">
-        <div class="bg-white/90 glass-card p-8 rounded-3xl w-full max-w-sm shadow-2xl flex flex-col items-center border border-white/40">
-            <div class="text-4xl mb-2">📚</div>
-            <h2 class="text-xl font-extrabold text-gray-800 mb-1">welcome back</h2>
-            <p class="text-xs text-gray-500 mb-6 lowercase">enter your passcode to unlock to-dos</p>
-            
-            <form id="auth-form" onsubmit="handleLogin(event)" class="w-full space-y-3">
-                <input type="email" id="auth-email" placeholder="email address" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
-                <input type="password" id="auth-password" placeholder="password" required class="w-full h-10 px-4 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none">
-                
-                <button type="submit" id="auth-submit-btn" class="w-full h-10 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer">
-                    unlock app 🔓
-                </button>
-            </form>
-            <p id="auth-error" class="text-xs font-bold text-rose-500 mt-3 hidden"></p>
-        </div>
-    </div>
 </html>
