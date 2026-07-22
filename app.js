@@ -143,16 +143,23 @@ function parsePipedResponses(rawText) {
     const lines = rawText.split('\n');
     const entries = [];
 
+    // Valid categories list built-in to prevent scope/undefined errors
+    const validCategories = [
+        'food & drink', 'shopping', 'clothing', 'transport', 'travel',
+        'subscriptions', 'mobile', 'events', 'fees', 'education', 
+        'health', 'utilities', 'other'
+    ];
+
     lines.forEach(line => {
         const trimmed = line.trim();
         // Skip empty lines or markdown table divider lines
         if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-')) return;
 
-        // Split by pipe and trim each part
+        // Split by pipe
         const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
         if (parts.length < 3) return;
 
-        // Skip headers if present
+        // Skip table headers if present
         const col0Lower = parts[0].toLowerCase();
         if (col0Lower === 'date' || parts[1].toLowerCase() === 'category' || parts[1].toLowerCase() === 'amount') return;
 
@@ -161,12 +168,12 @@ function parsePipedResponses(rawText) {
         let amountStr = '0';
         let description = 'expense';
 
-        // Check if Column 2 is a numeric amount (Bot format: Date | Amount | Category | Description)
+        // Check if Column 2 is numeric (Format: 2026-07-14 | 5.00 | food & drink | taste mixed veg rice)
         const col1AsNum = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
         if (!isNaN(col1AsNum) && parts.length >= 4) {
             amountStr = parts[1];
             category = parts[2];
-            description = parts.slice(3).join(' '); // Handles descriptions with additional pipes
+            description = parts.slice(3).join(' '); // Re-join if description had extra pipes
         } else {
             // Standard format: Date | Category | Amount | Description
             category = parts[1];
@@ -174,7 +181,7 @@ function parsePipedResponses(rawText) {
             description = parts.slice(3).join(' ');
         }
 
-        // Format date to standard YYYY-MM-DD for Supabase
+        // Standardize Date (YYYY-MM-DD or DD/MM/YYYY)
         let date = rawDate;
         if (rawDate.includes('/')) {
             const dateParts = rawDate.split('/');
@@ -185,11 +192,15 @@ function parsePipedResponses(rawText) {
         }
 
         const amount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
-        let cleanCategory = (category || 'other').toLowerCase();
+        let cleanCategory = (category || 'other').toLowerCase().trim();
 
-        // Ensure category matches known list or fallback to 'other'
-        if (!CATEGORY_MAP[cleanCategory]) {
-            cleanCategory = 'other';
+        // Match category or fallback to 'other'
+        if (!validCategories.includes(cleanCategory)) {
+            // Quick aliases
+            if (cleanCategory.includes('food') || cleanCategory.includes('drink')) cleanCategory = 'food & drink';
+            else if (cleanCategory.includes('shop')) cleanCategory = 'shopping';
+            else if (cleanCategory.includes('bus') || cleanCategory.includes('grab') || cleanCategory.includes('mrt')) cleanCategory = 'transport';
+            else cleanCategory = 'other';
         }
 
         if (amount > 0 && date) {
@@ -197,11 +208,12 @@ function parsePipedResponses(rawText) {
                 date,
                 category: cleanCategory,
                 amount,
-                description: (description || 'expense').toLowerCase()
+                description: (description || 'expense').toLowerCase().trim()
             });
         }
     });
 
+    console.log("Parsed entries successfully:", entries); // Open browser console (F12) to verify output!
     return entries;
 }
 
