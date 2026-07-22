@@ -2,273 +2,178 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>to-dos 📚</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="to-dos 📚">
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <!-- Tailwind CSS V4 -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="flex flex-col h-screen text-gray-700 font-sans relative antialiased selection:bg-purple-100">
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans antialiased">
 
-    <!-- AUTHENTICATION OVERLAY MODAL -->
-    <div id="auth-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-3xl shadow-xl w-80 text-center border border-gray-100">
-            <h2 class="text-lg font-bold text-gray-800 lowercase mb-1">enter passcode</h2>
-            <form id="auth-form" onsubmit="handleLogin(event)" class="space-y-3">
-                <input 
-                    type="password" 
-                    id="auth-passcode" 
-                    placeholder="passcode" 
-                    required 
-                    autocomplete="current-password"
-                    class="w-full px-4 py-2.5 text-center text-sm font-semibold rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 transition-all lowercase"
-                />
-                <p id="auth-error" class="text-xs text-rose-500 font-bold hidden lowercase"></p>
-                <button 
-                    type="submit" 
-                    id="auth-submit-btn" 
-                    class="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-2xl shadow-sm transition-all active:scale-95 lowercase cursor-pointer"
-                >
-                    login
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- DUPLICATE TOAST -->
-    <div id="duplicate-toast" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm bg-white/95 backdrop-blur-md border border-amber-200 p-4 rounded-2xl shadow-xl flex flex-col gap-2 transition-all scale-95 duration-200">
-        <div class="flex items-start gap-3">
-            <span class="text-xl">⚠️</span>
-            <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-gray-800 lowercase tracking-wide">Possible Duplicate Entry</div>
-                <div id="duplicate-toast-msg" class="text-[11px] text-gray-500 mt-0.5 lowercase"></div>
-            </div>
-        </div>
-        <div class="flex items-center justify-end gap-2 mt-1">
-            <button onclick="dismissDuplicate()" class="px-3 py-1.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-xl cursor-pointer hover:bg-gray-200 active:scale-95 transition-all">skip</button>
-            <button onclick="forceInsertDuplicate()" class="px-3 py-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-xl cursor-pointer hover:bg-amber-200 active:scale-95 transition-all">log anyway</button>
-        </div>
-    </div>
-
-    <!-- HEADER -->
-    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 shadow-3xs shrink-0">
-        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div class="flex items-center justify-between w-full lg:w-auto">
-                <h1 onclick="window.location.reload()" class="text-2xl font-black tracking-tight bg-gradient-to-r from-purple-600 via-pink-500 to-rose-400 bg-clip-text text-transparent whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity active:scale-98 transform duration-150">to-dos 📚</h1>
-                <div class="flex items-center gap-2">
-                    <button onclick="handleLogout()" class="text-xs font-bold text-gray-400 hover:text-rose-500 px-2 py-1 rounded-lg border border-gray-100 hover:bg-rose-50 transition-all cursor-pointer">lock 🔒</button>
-                    <span id="task-count" class="lg:hidden px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
-                </div>
+    <!-- MAIN APP CONTAINER -->
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        
+        <!-- HEADER / NAVIGATION -->
+        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-gray-900 lowercase">expense tracker 💸</h1>
+                <p class="text-xs text-gray-400 font-medium lowercase">monthly overview & transaction ledger</p>
             </div>
             
-            <form id="todo-form" class="bg-gray-50/60 p-1.5 rounded-2xl border border-gray-100 shadow-3xs w-full lg:max-w-3xl">
-                <div class="flex flex-col sm:flex-row gap-2 w-full items-stretch sm:items-center">
-                    <div class="flex flex-1 gap-2 items-center w-full">
-                        <div class="shrink-0">
-                            <select id="entry-type" class="h-10 px-3 text-xs font-extrabold text-gray-600 bg-white shadow-2xs border-0 rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer whitespace-nowrap">
-                                <option value="task">📝 task</option>
-                                <option value="expense">💰 expense</option>
+            <!-- Month Selector -->
+            <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                <button id="prev-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">←</button>
+                <span id="current-month-display" class="text-xs font-bold px-3 text-gray-700 lowercase"></span>
+                <button id="next-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">→</button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- LEFT / TOP: ADD EXPENSE & STATS -->
+            <div class="space-y-6">
+                <!-- Add Expense Card -->
+                <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
+                    <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">add transaction</h2>
+                    <form id="expense-form" class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">description</label>
+                            <input type="text" id="expense-desc" required placeholder="e.g. coffee / books" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">amount ($)</label>
+                                <input type="number" step="0.01" id="expense-amount" required placeholder="0.00" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">date</label>
+                                <input type="date" id="expense-date" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">category</label>
+                            <select id="expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
+                                <option value="food & drink">food & drink</option>
+                                <option value="shopping">shopping</option>
+                                <option value="transport">transport</option>
+                                <option value="entertainment">entertainment</option>
+                                <option value="utilities">utilities</option>
+                                <option value="other">other</option>
                             </select>
                         </div>
-                        <div class="flex-1 w-full">
-                            <input type="text" id="todo-input" placeholder="what's on your mind? type details..." required class="w-full h-10 px-4 text-xs lowercase bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all placeholder-gray-400 font-medium">
-                        </div>
+
+                        <button type="submit" class="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
+                            add entry
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Monthly Breakdown Visuals -->
+                <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
+                    <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">monthly breakdown</h2>
+                    <div id="expense-visual-stats" class="space-y-3">
+                        <!-- Progress bars injected dynamically -->
                     </div>
-                    <div class="flex gap-2 w-full sm:w-auto justify-between sm:justify-end items-center shrink-0">
-                        <input type="date" id="todo-date" required class="flex-1 sm:flex-initial h-10 px-3 text-xs font-bold text-gray-500 bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
-                        <input type="time" id="todo-time" class="flex-1 sm:flex-initial h-10 px-3 text-xs font-bold text-gray-500 bg-white border-0 shadow-2xs rounded-xl focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all cursor-pointer">
-                        <button type="submit" class="h-10 px-5 text-xs font-extrabold text-purple-800 pastel-purple-1 rounded-xl shadow-2xs hover:shadow-xs active:scale-95 transition-all cursor-pointer shrink-0">log item</button>
+                </div>
+            </div>
+
+            <!-- RIGHT / MAIN: EXPENSE LIST LEDGER -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-xs border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">recent transactions</h2>
+                        <button onclick="toggleLedgerFullscreen()" class="px-3 py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition-all cursor-pointer lowercase">
+                            expand view ⤢
+                        </button>
                     </div>
+
+                    <ul id="expense-ledger-list" class="space-y-2.5 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+                        <!-- List items injected dynamically -->
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FULLSCREEN EXPANDED EXPENSE LEDGER MODAL -->
+    <div id="expanded-ledger-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-8" onclick="toggleLedgerFullscreen()">
+        <div class="bg-white rounded-3xl w-full max-w-6xl h-full max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-black text-gray-800 tracking-tight lowercase">transaction ledger 💰</h3>
+                    <span id="expanded-month-label" class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 lowercase"></span>
+                </div>
+                <button onclick="toggleLedgerFullscreen()" class="px-4 py-2 text-xs font-bold bg-white hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer text-gray-600 transition-all active:scale-95">
+                    close view ✕
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+                <!-- Left Side: Summary Stats -->
+                <div class="w-full md:w-72 bg-gray-50/60 p-6 border-r border-gray-100 shrink-0 overflow-y-auto no-scrollbar">
+                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-4">monthly breakdown</div>
+                    <div id="expanded-visual-stats" class="space-y-4"></div>
+                </div>
+
+                <!-- Right Side: Scrollable Table -->
+                <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar p-6 bg-white" id="expanded-table-container">
+                    <!-- Dynamic Table Injected Here -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- EDIT / VIEW TRANSACTION MODAL -->
+    <div id="edit-expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeExpenseModal()">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                <h3 class="font-black text-sm lowercase">edit transaction</h3>
+                <button onclick="closeExpenseModal()" class="text-xs font-bold text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <form id="edit-expense-form" class="space-y-3">
+                <input type="hidden" id="edit-expense-id">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">description</label>
+                    <input type="text" id="edit-expense-desc" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">amount ($)</label>
+                        <input type="number" step="0.01" id="edit-expense-amount" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">date</label>
+                        <input type="date" id="edit-expense-date" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">category</label>
+                    <select id="edit-expense-category" class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
+                        <option value="food & drink">food & drink</option>
+                        <option value="shopping">shopping</option>
+                        <option value="transport">transport</option>
+                        <option value="entertainment">entertainment</option>
+                        <option value="utilities">utilities</option>
+                        <option value="other">other</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeExpenseModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl lowercase">cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-xl lowercase">save changes</button>
                 </div>
             </form>
         </div>
-    </header>
-
-    <div class="flex md:hidden bg-gray-100 p-1.5 rounded-2xl gap-1 shrink-0 mx-6 mt-4 shadow-3xs">
-        <button id="tab-btn-timeline" onclick="switchMobileTab('timeline')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all pastel-purple-1 text-purple-800 shadow-2xs">timeline 🌸</button>
-        <button id="tab-btn-calendar" onclick="switchMobileTab('calendar')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600">calendar 📅</button>
-        <button id="tab-btn-expenses" onclick="switchMobileTab('expenses')" class="flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600">expenses 💰</button>
     </div>
 
-    <!-- MAIN DASHBOARD CONTENT -->
-    <main class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-6 gap-6 min-h-0">
-        <section id="mobile-sec-calendar" class="hidden md:flex html-calendar-grid flex-col flex-1 glass-card rounded-3xl p-6 shadow-sm overflow-hidden transition-all duration-300">
-            <div class="flex items-center justify-between mb-5">
-                <h2 id="calendar-month-year" class="text-xl font-extrabold text-gray-800 tracking-tight lowercase">...</h2>
-                <div class="flex gap-1.5">
-                    <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">‹</button>
-                    <button onclick="changeMonth(1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">›</button>
-                </div>
-            </div>
-            <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-gray-400 tracking-wider lowercase mb-3">
-                <div>sun</div><div>mon</div><div>tue</div><div>wed</div><div>thu</div><div>fri</div><div>sat</div>
-            </div>
-            <div id="calendar-days" class="grid grid-cols-7 grid-rows-none auto-rows-stretch gap-2.5 flex-1 h-full min-h-0 overflow-hidden no-scrollbar"></div>
-        </section>
-
-        <section id="mobile-sec-timeline" class="flex w-full md:w-96 flex-col glass-card rounded-3xl p-6 shadow-sm overflow-hidden h-full transition-all duration-300">
-            <div class="flex items-center justify-between mb-5 shrink-0">
-                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight">timeline</h2>
-                <span id="desktop-task-count" class="hidden md:inline-block px-3 py-1 text-xs font-bold rounded-full pastel-purple-1 text-purple-700">0 tasks</span>
-            </div>
-            <div id="loading-state" class="text-center py-12 text-xs font-medium text-gray-400 tracking-wide shrink-0">loading your deck...</div>
-            <ul id="todo-list" class="space-y-3.5 flex-1 overflow-y-auto no-scrollbar hidden pb-8"></ul>
-        </section>
-
-        <section id="mobile-sec-expenses" class="hidden md:flex w-full md:w-96 flex-col glass-card rounded-3xl p-6 shadow-sm overflow-hidden h-full transition-all duration-300">
-            <div id="expenses-heading-row" class="flex items-center justify-between mb-5 shrink-0">
-                <h2 class="text-xl font-extrabold text-gray-800 tracking-tight lowercase">expenses</h2>
-                <div class="flex gap-1.5">
-                    <button onclick="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">‹</button>
-                    <button onclick="changeMonth(1)" class="w-9 h-9 flex items-center justify-center text-md font-bold bg-white shadow-2xs hover:bg-purple-50 rounded-xl border border-gray-100 transition-all cursor-pointer text-gray-500 active:scale-90">›</button>
-                </div>
-            </div>
-            
-            <div id="ledger-input-area" class="mb-5 space-y-3 shrink-0">
-                <form id="express-expense-form" class="flex flex-col gap-2">
-                    <textarea id="express-expense-input" rows="2" placeholder="paste pipe-separated entries (yyyy-mm-dd | amount | category | description)..." required class="w-full px-4 py-3 text-xs lowercase bg-gray-50/50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none placeholder-gray-400 font-medium leading-relaxed"></textarea>
-                    <button type="submit" class="w-full py-2.5 text-xs font-bold text-emerald-800 pastel-mint rounded-xl shadow-2xs hover:opacity-90 active:scale-98 transition-all cursor-pointer">clean & log entry</button>
-                </form>
-                
-                <div id="ledger-category-selection-bar" class="mt-3">
-                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-2 text-center">Active Selector: <span id="active-cat-display" class="text-purple-600 font-extrabold">🍔 food & drink</span></div>
-                    <div class="grid grid-cols-7 gap-1 bg-gray-100/60 p-1 rounded-xl border border-gray-50">
-                        <button type="button" onclick="setCategory('food & drink', '🍔')" id="cat-btn-food" class="py-2 text-sm rounded-lg transition-all bg-white shadow-3xs scale-105 active:scale-95" title="food & drink">🍔</button>
-                        <button type="button" onclick="setCategory('shopping', '🛍️')" id="cat-btn-shop" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="shopping">🛍️</button>
-                        <button type="button" onclick="setCategory('subscriptions', '📺')" id="cat-btn-sub" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="subscriptions">📺</button>
-                        <button type="button" onclick="setCategory('events', '🎟️')" id="cat-btn-evt" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="events">🎟️</button>
-                        <button type="button" onclick="setCategory('fees', '💵')" id="cat-btn-fee" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="fees">💵</button>
-                        <button type="button" onclick="setCategory('health', '💊')" id="cat-btn-hlth" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="health">💊</button>
-                        <button type="button" onclick="setCategory('transport', '🚌')" id="cat-btn-trans" class="py-2 text-sm rounded-lg transition-all hover:bg-white/60 active:scale-95" title="transport">🚌</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="ledger-workspace-wrapper" class="flex flex-col flex-1 min-h-0 gap-5">
-                <div id="summary-card-block" class="bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0">
-                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-3">monthly summary</div>
-                    <div id="expense-visual-stats" class="space-y-3.5"></div>
-                </div>
-
-                <div class="flex flex-col flex-1 min-h-0">
-                    <div class="flex items-center justify-between mb-3 select-none shrink-0">
-                        <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase">transaction ledger</div>
-                        <button type="button" onclick="toggleLedgerFullscreen()" id="ledger-zoom-btn" class="hidden md:flex items-center gap-1 text-[10px] font-extrabold text-purple-500 hover:text-purple-700 transition-colors cursor-pointer tracking-wide">
-                            <span>expand view</span> ↗
-                        </button>
-                    </div>
-                    
-                    <div id="ledger-scroll-container" class="flex-1 overflow-y-auto no-scrollbar min-h-0">
-                        <ul id="expense-ledger-list" class="space-y-2.5 text-xs"></ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- TASK MODAL -->
-    <div id="task-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="handleModalOutsideClick(event)">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3 shrink-0">
-                <h3 class="text-md font-extrabold text-gray-800 tracking-tight">task details 📌</h3>
-                <button onclick="closeModal()" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
-            </div>
-            <input type="hidden" id="modal-task-id">
-            <div class="space-y-4 flex-1 flex flex-col overflow-y-auto no-scrollbar w-full min-w-0 mt-4 py-1">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">description</label>
-                    <input type="text" id="modal-task-title" class="w-full px-4 py-2.5 text-sm lowercase bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all font-medium text-gray-700">
-                </div>
-                <div class="flex w-full gap-3 table-layout-fixed">
-                    <div style="width: 50%; min-width: 0;">
-                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">due date</label>
-                        <input type="date" id="modal-task-date" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
-                    </div>
-                    <div style="width: 50%; min-width: 0;">
-                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">time (optional)</label>
-                        <input type="time" id="modal-task-time" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
-                    </div>
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase">progress</label>
-                        <span id="modal-slider-value" class="text-xs font-extrabold text-purple-600">0%</span>
-                    </div>
-                    <div class="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                        <input type="range" id="modal-task-progress" min="0" max="100" step="5" class="w-full accent-purple-500 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none" oninput="document.getElementById('modal-slider-value').textContent = this.value + '%'; this.style.background = `linear-gradient(to right, #ffd6e0 0%, #e8dbfc ${this.value}%, #e5e7eb ${this.value}%)`;">
-                    </div>
-                </div>
-                <div class="flex-1 flex flex-col min-h-[140px]">
-                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">notes</label>
-                    <textarea id="modal-task-notes" placeholder="add details, links, or sub-lists here..." class="w-full flex-1 px-4 py-3 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all resize-none text-gray-600 placeholder-gray-400 font-medium leading-relaxed overflow-y-auto"></textarea>
-                </div>
-            </div>
-            <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-50 shrink-0">
-                <button onclick="closeModal()" class="px-4 py-2.5 text-xs font-bold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500 transition-colors">cancel</button>
-                <button onclick="saveModalChanges()" class="px-5 py-2.5 text-xs font-extrabold text-pink-800 pastel-pink-1 hover:shadow-2xs active:scale-95 rounded-xl cursor-pointer transition-all">save changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- EXPENSE MODAL -->
-    <div id="expense-modal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeExpenseModal()">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                <h3 class="text-md font-extrabold text-gray-800 tracking-tight">expense details 💰</h3>
-                <button onclick="closeExpenseModal()" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
-            </div>
-            <input type="hidden" id="modal-expense-id">
-            <div class="space-y-4 mt-4 w-full">
-                <div class="flex w-full gap-3 table-layout-fixed">
-                    <div style="width: 50%; min-width: 0;">
-                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">date</label>
-                        <input type="date" id="modal-expense-date" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
-                    </div>
-                    <div style="width: 50%; min-width: 0;">
-                        <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">amount ($)</label>
-                        <input type="number" step="0.01" id="modal-expense-amount" class="w-full box-border px-3 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-semibold">
-                    </div>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">description</label>
-                    <input type="text" id="modal-expense-description" class="w-full px-4 py-2.5 text-sm lowercase bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-700 font-medium">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 tracking-wider lowercase block mb-1.5">category</label>
-                    <select id="modal-expense-category" class="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-purple-200 focus:bg-white focus:outline-none transition-all text-gray-600 font-bold cursor-pointer">
-                        <option value="food & drink">🍔 food & drink</option>
-                        <option value="shopping">🛍️ shopping</option>
-                        <option value="subscriptions">📺 subscriptions</option>
-                        <option value="events">🎟️ events</option>
-                        <option value="fees">💵 fees</option>
-                        <option value="health">💊 health</option>
-                        <option value="transport">🚌 transport</option>
-                    </select>
-                </div>
-            </div>
-            <div class="flex items-center justify-end gap-2 mt-5 pt-3 border-t border-gray-50">
-                <button onclick="closeExpenseModal()" class="px-4 py-2.5 text-xs font-bold bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer text-gray-500 transition-colors">cancel</button>
-                <button onclick="saveExpenseModalChanges()" class="px-5 py-2.5 text-xs font-extrabold text-pink-800 pastel-pink-1 hover:shadow-2xs active:scale-95 rounded-xl cursor-pointer transition-all">save changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- CALENDAR DAY POPUP -->
-    <div id="calendar-day-popup" class="hidden fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all" onclick="closeDaySchedulePopup()">
-        <div class="bg-white rounded-3xl p-5 w-full max-w-sm shadow-2xl border border-gray-100 relative" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
-                <h3 id="popup-schedule-date" class="text-sm font-extrabold text-gray-800 tracking-tight lowercase">schedule details</h3>
-                <button onclick="closeDaySchedulePopup()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 font-bold text-xs rounded-full transition-colors cursor-pointer">✕</button>
-            </div>
-            <div id="popup-schedule-content" class="space-y-2.5 max-h-[280px] overflow-y-auto no-scrollbar py-0.5"></div>
-        </div>
-    </div>
-    <script type="module" src="app.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
