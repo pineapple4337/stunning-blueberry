@@ -1,13 +1,16 @@
 import { APP_CONFIG, CATEGORY_MAP } from './config.js';
 
-// Initialize Supabase Client
-const supabase = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+// --- SUPABASE CLIENT INITIALIZATION ---
+const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
 
+// --- DOM HELPER ---
 const $ = (id) => document.getElementById(id);
 
+// --- GLOBAL STATE ---
 let globalExpensesCache = [];
 let displayDate = new Date();
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     initDefaultDate();
     setupEventListeners();
@@ -16,19 +19,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initDefaultDate() {
     const today = new Date().toISOString().split('T')[0];
-    if ($('expense-date')) $('expense-date').value = today;
+    if ($('expense-date'))$('expense-date').value = today;
     updateMonthDisplay();
 }
 
 function updateMonthDisplay() {
     const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-    const monthText = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
-    if ($('current-month-display')) $('current-month-display').textContent = monthText;
-    if ($('ledger-month-badge')) $('ledger-month-badge').textContent = monthText;
+    if ($('current-month-display')) {$('current-month-display').textContent = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
+    }
 }
 
-// --- SUPABASE DATA FETCHING ---
+// --- FETCH FROM SUPABASE ---
 async function fetchExpensesFromSupabase() {
+    if (!supabase) {
+        console.error("Supabase client not initialized.");
+        return;
+    }
+
     try {
         const { data, error } = await supabase
             .from('expenses')
@@ -40,60 +47,154 @@ async function fetchExpensesFromSupabase() {
         globalExpensesCache = data || [];
         renderExpenses();
     } catch (err) {
-        console.error("error fetching expenses from supabase:", err.message);
+        console.error("Error fetching expenses from Supabase:", err.message);
     }
+}
+
+// --- ROBUST PIPE PARSER ---
+function parsePipedResponses(rawText) {
+    if (!rawText || typeof rawText !== 'string') return [];
+
+    const lines = rawText.split('\n');
+    const entries = [];
+
+    // Fallback valid categories list
+    const validCategories = Object.keys(CATEGORY_MAP || {}).length > 0 
+        ? Object.keys(CATEGORY_MAP) 
+        : ['food & drink', 'shopping', 'subscriptions', 'events', 'fees', 'health', 'transport', 'utilities', 'other'];
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        // Skip empty lines, markdown dividers, or code blocks
+        if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-') || trimmed.startsWith('```')) return;
+
+        // Split by pipe and clean whitespace
+        const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
+        if (parts.length < 3) return;
+
+        // Skip header lines if present
+        const col0Lower = parts[0].toLowerCase();
+        if (col0Lower === 'date' || parts[1].toLowerCase() === 'category' || parts[1].toLowerCase() === 'amount') return;
+
+        let rawDate = parts[0];
+        let category = 'other';
+        let amountStr = '0';
+        let description = 'expense';
+
+        // Check if Col 2 is numeric: 2026-07-14 | 5.00 | food & drink | taste mixed veg rice
+        const col1AsNum = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
+        if (!isNaN(col1AsNum) && parts.length >= 4) {
+            amountStr = parts[1];
+            category = parts[2];
+            description = parts.slice(3).join(' ');
+        } else {
+            // Format: Date | Category | Amount | Description
+            category = parts[1];
+            amountStr = parts[2];
+            description = parts.slice(3).join(' ');
+        }
+
+        // Handle Date formatting (convert DD/MM/YYYY to YYYY-MM-DD if necessary)
+        let date = rawDate;
+        if (rawDate.includes('/')) {
+            const dateParts = rawDate.split('/');
+            if (dateParts.length === 3) {
+                const [d, m, y] = dateParts;
+                date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+        }
+
+        const amount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
+        let cleanCategory = (category || 'other').toLowerCase().trim();
+
+        // Categorize match or fallback
+        if (!validCategories.includes(cleanCategory)) {
+            if (cleanCategory.includes('food') || cleanCategory.includes('drink')) cleanCategory = 'food & drink';
+            else if (cleanCategory.includes('shop')) cleanCategory = 'shopping';
+            else if (cleanCategory.includes('trans') || cleanCategory.includes('bus') || cleanCategory.includes('mrt')) cleanCategory = 'transport';
+            else cleanCategory = 'other';
+        }
+
+        if (amount > 0 && date) {
+            entries.push({
+                date,
+                category: cleanCategory,
+                amount,
+                description: (description || 'expense').toLowerCase().trim()
+            });
+        }
+    });
+
+    return entries;
 }
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
-    // Single Entry Submit
+    // Single Form Submit (Add Entry)
     $('expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const description = $('expense-desc').value.trim().toLowerCase();
-        const amount = parseFloat($('expense-amount').value);
-        const date = $('expense-date').value;
-        const category = $('expense-category').value.toLowerCase();
+        const newExpense = {
+            description: $('expense-desc').value.toLowerCase(),
+            amount: parseFloat($('expense-amount').value),
+            date: $('expense-date').value,
+            category: $('expense-category').value
+        };
 
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('expenses')
-                .insert([{ description, amount, date, category }]);
+                .insert([newExpense])
+                .select();
 
             if (error) throw error;
 
+            if (data && data.length > 0) {
+                globalExpensesCache.unshift(data[0]);
+            }
+            
+            renderExpenses();
             $('expense-form').reset();
             initDefaultDate();
-            await fetchExpensesFromSupabase();
         } catch (err) {
-            console.error('failed to add expense:', err.message);
+            console.error("Failed to add expense:", err.message);
         }
     });
 
-    // Piped Input Import Handler
-    $('toggle-pipe-btn')?.addEventListener('click', () => {
-        const container = $('piped-input-container');
-        if (container) container.classList.toggle('hidden');
-    });
+    // BULK PIPE IMPORT LISTENER
+    const importBtn = $('import-piped-btn') || $('bulk-import-btn') || $('pipe-import-btn');
+    importBtn?.addEventListener('click', async () => {
+        const textInput = $('piped-text-input') || $('bulk-text-input') || $('piped-input') || $('expense-piped-input');
+        const text = textInput?.value?.trim();
 
-    $('import-piped-btn')?.addEventListener('click', async () => {
-        const text = $('piped-text-input')?.value.trim();
-        if (!text) return;
+        if (!text) {
+            alert('please paste text into the box first!');
+            return;
+        }
 
         const parsedEntries = parsePipedResponses(text);
+
         if (parsedEntries.length === 0) {
-            alert('no valid entries parsed. check the piped format!');
+            alert('no valid entries parsed. check your text format!');
             return;
         }
 
         try {
-            const { error } = await supabase.from('expenses').insert(parsedEntries);
+            // Single Batch Supabase Request
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert(parsedEntries)
+                .select();
+
             if (error) throw error;
 
-            $('piped-text-input').value = '';
-            $('piped-input-container').classList.add('hidden');
+            alert(`successfully imported ${parsedEntries.length} entries!`);
+            
+            if (textInput) textInput.value = '';
             await fetchExpensesFromSupabase();
+
         } catch (err) {
-            console.error('failed to insert piped expenses:', err.message);
+            console.error("Supabase bulk insert failed:", err.message);
+            alert(`import failed: ${err.message}`);
         }
     });
 
@@ -101,23 +202,30 @@ function setupEventListeners() {
     $('edit-expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = $('edit-expense-id').value;
-        const description = $('edit-expense-desc').value.trim().toLowerCase();
-        const amount = parseFloat($('edit-expense-amount').value);
-        const date = $('edit-expense-date').value;
-        const category = $('edit-expense-category').value.toLowerCase();
+        const updatedFields = {
+            description: $('edit-expense-desc').value.toLowerCase(),
+            amount: parseFloat($('edit-expense-amount').value),
+            date: $('edit-expense-date').value,
+            category: $('edit-expense-category').value
+        };
 
         try {
             const { error } = await supabase
                 .from('expenses')
-                .update({ description, amount, date, category })
+                .update(updatedFields)
                 .eq('id', id);
 
             if (error) throw error;
 
+            const index = globalExpensesCache.findIndex(e => e.id == id);
+            if (index !== -1) {
+                globalExpensesCache[index] = { ...globalExpensesCache[index], ...updatedFields };
+            }
+
+            renderExpenses();
             closeExpenseModal();
-            await fetchExpensesFromSupabase();
         } catch (err) {
-            console.error('failed to update expense:', err.message);
+            console.error("Failed to update expense:", err.message);
         }
     });
 
@@ -134,157 +242,129 @@ function setupEventListeners() {
         renderExpenses();
     });
 
-    // Modal Close Listeners
-    $('close-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
-    $('cancel-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
-}
-
-function parsePipedResponses(rawText) {
-    const lines = rawText.split('\n');
-    const entries = [];
-
-    // Valid categories list built-in to prevent scope/undefined errors
-    const validCategories = [
-        'food & drink', 'shopping', 'clothing', 'transport', 'travel',
-        'subscriptions', 'mobile', 'events', 'fees', 'education', 
-        'health', 'utilities', 'other'
-    ];
-
-    lines.forEach(line => {
-        const trimmed = line.trim();
-        // Skip empty lines or markdown table divider lines
-        if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-')) return;
-
-        // Split by pipe
-        const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
-        if (parts.length < 3) return;
-
-        // Skip table headers if present
-        const col0Lower = parts[0].toLowerCase();
-        if (col0Lower === 'date' || parts[1].toLowerCase() === 'category' || parts[1].toLowerCase() === 'amount') return;
-
-        let rawDate = parts[0];
-        let category = 'other';
-        let amountStr = '0';
-        let description = 'expense';
-
-        // Check if Column 2 is numeric (Format: 2026-07-14 | 5.00 | food & drink | taste mixed veg rice)
-        const col1AsNum = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
-        if (!isNaN(col1AsNum) && parts.length >= 4) {
-            amountStr = parts[1];
-            category = parts[2];
-            description = parts.slice(3).join(' '); // Re-join if description had extra pipes
-        } else {
-            // Standard format: Date | Category | Amount | Description
-            category = parts[1];
-            amountStr = parts[2];
-            description = parts.slice(3).join(' ');
-        }
-
-        // Standardize Date (YYYY-MM-DD or DD/MM/YYYY)
-        let date = rawDate;
-        if (rawDate.includes('/')) {
-            const dateParts = rawDate.split('/');
-            if (dateParts.length === 3) {
-                const [d, m, y] = dateParts;
-                date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            }
-        }
-
-        const amount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
-        let cleanCategory = (category || 'other').toLowerCase().trim();
-
-        // Match category or fallback to 'other'
-        if (!validCategories.includes(cleanCategory)) {
-            // Quick aliases
-            if (cleanCategory.includes('food') || cleanCategory.includes('drink')) cleanCategory = 'food & drink';
-            else if (cleanCategory.includes('shop')) cleanCategory = 'shopping';
-            else if (cleanCategory.includes('bus') || cleanCategory.includes('grab') || cleanCategory.includes('mrt')) cleanCategory = 'transport';
-            else cleanCategory = 'other';
-        }
-
-        if (amount > 0 && date) {
-            entries.push({
-                date,
-                category: cleanCategory,
-                amount,
-                description: (description || 'expense').toLowerCase().trim()
-            });
-        }
+    // Transaction Ledger Modal Toggles
+    $('open-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
+    $('close-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
+    $('expanded-ledger-modal')?.addEventListener('click', (e) => {
+        if (e.target === $('expanded-ledger-modal')) toggleLedgerFullscreen();
     });
 
-    console.log("Parsed entries successfully:", entries); // Open browser console (F12) to verify output!
-    return entries;
+    // Edit Modal Toggles
+    $('close-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
+    $('cancel-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
+
+    // Escape Key Listener
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
+                toggleLedgerFullscreen();
+            }
+            closeExpenseModal();
+        }
+    });
 }
 
-// --- RENDER FUNCTION FOR BREAKDOWN & INLINE LEDGER ---
+// --- RENDER MONTHLY BREAKDOWN ---
 function renderExpenses() {
-    renderMonthlyBreakdown();
-    renderInlineLedger();
-}
-
-function renderMonthlyBreakdown() {
     const stats = $('expense-visual-stats');
     if (!stats) return;
 
     stats.innerHTML = '';
 
+    let totals = {}, totalAll = 0;
+    
+    // Build initial category map
+    const activeCatMap = CATEGORY_MAP || {
+        'food & drink': { emoji: '🍔', barColor: 'bg-rose-300' },
+        'shopping': { emoji: '🛍️', barColor: 'bg-pink-300' },
+        'subscriptions': { emoji: '📺', barColor: 'bg-purple-300' },
+        'events': { emoji: '🎟️', barColor: 'bg-indigo-300' },
+        'fees': { emoji: '💵', barColor: 'bg-blue-300' },
+        'health': { emoji: '💊', barColor: 'bg-teal-300' },
+        'transport': { emoji: '🚌', barColor: 'bg-emerald-300' },
+        'utilities': { emoji: '⚡', barColor: 'bg-amber-300' },
+        'other': { emoji: '📦', barColor: 'bg-gray-300' }
+    };
+
+    Object.keys(activeCatMap).forEach(k => totals[k] = 0);
+    
+    // Filter by selected month
     const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
     const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
-
-    let totals = {};
-    let totalAll = 0;
 
     active.forEach(e => {
-        const amt = parseFloat(e.amount) || 0;
-        const cat = (e.category || 'other').toLowerCase();
-        totals[cat] = (totals[cat] || 0) + amt;
-        totalAll += amt;
+        const a = parseFloat(e.amount);
+        totalAll += a;
+        if (totals[e.category] !== undefined) {
+            totals[e.category] += a;
+        } else {
+            totals['other'] = (totals['other'] || 0) + a;
+        }
     });
 
-    const categoriesWithExpenses = Object.entries(totals).filter(([_, sum]) => sum > 0);
+    let hasEntries = false;
 
-    if (categoriesWithExpenses.length === 0) {
-        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
-        return;
-    }
+    // Render category stats
+    Object.entries(totals).forEach(([cat, sum]) => {
+        if (!sum) return;
+        hasEntries = true;
+        const pct = totalAll ? (sum / totalAll) * 100 : 0;
+        const meta = activeCatMap[cat] || { emoji: '📦', barColor: 'bg-gray-300' };
 
-    // Sort categories highest spending first
-    categoriesWithExpenses.sort((a, b) => b[1] - a[1]);
-
-    categoriesWithExpenses.forEach(([cat, sum]) => {
-        const pct = totalAll > 0 ? (sum / totalAll) * 100 : 0;
-        const meta = CATEGORY_MAP[cat] || CATEGORY_MAP['other'];
-
-        const itemEl = document.createElement('div');
-        itemEl.className = "text-xs lowercase space-y-1";
-        itemEl.innerHTML = `
-            <div class="flex justify-between font-semibold text-gray-600 items-center">
-                <span class="font-bold text-gray-700 inline-flex items-center gap-1.5">
-                    <span>${meta.emoji}</span>
-                    <span>${cat}</span>
-                </span>
+        stats.appendChild(Object.assign(document.createElement('div'), {
+            className: "text-xs lowercase",
+            innerHTML: `<div class="flex justify-between font-semibold text-gray-600 items-center mb-1">
+                <span class="font-bold text-gray-700">${meta.emoji || '📦'} ${cat}</span>
                 <span class="font-bold text-gray-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
-            <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                <div class="${meta.barColor} h-full transition-all duration-500" style="width: ${pct}%"></div>
-            </div>
-        `;
-        stats.appendChild(itemEl);
+            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div class="${meta.barColor || 'bg-purple-300'} h-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>`
+        }));
     });
+
+    if (!hasEntries) {
+        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
+    }
+
+    if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
+        renderExpandedLedger();
+    }
 }
 
-function renderInlineLedger() {
-    const container = $('inline-ledger-container');
-    if (!container) return;
+// --- FULLSCREEN EXPANDED LEDGER MODAL ---
+function toggleLedgerFullscreen() {
+    const modal = $('expanded-ledger-modal');
+    if (!modal) return;
+
+    const isHidden = modal.classList.contains('hidden');
+    if (isHidden) {
+        modal.classList.remove('hidden');
+        renderExpandedLedger();
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+window.toggleLedgerFullscreen = toggleLedgerFullscreen;
+
+function renderExpandedLedger() {
+    const tableContainer = $('expanded-table-container');
+    const statsContainer = $('expanded-visual-stats');
+    const monthLabel = $('expanded-month-label');
+    if (!tableContainer || !statsContainer) return;
+
+    const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    if (monthLabel) monthLabel.textContent = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
 
     const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
     const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
+
+    statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
     let tableHtml = `<table class="w-full text-left border-collapse text-xs lowercase relative">
         <thead>
-            <tr class="bg-gray-50/80 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10 backdrop-blur-xs">
-                <th class="p-3.5 w-28 pl-6">date</th>
+            <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10">
+                <th class="p-3.5 w-28 pl-5">date</th>
                 <th class="p-3.5 w-40">category</th>
                 <th class="p-3.5">description</th>
                 <th class="p-3.5 w-32 text-right pr-6">amount</th>
@@ -293,23 +373,18 @@ function renderInlineLedger() {
         <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">`;
 
     if (active.length === 0) {
-        tableHtml += `<tr><td colspan="4" class="p-12 text-center text-gray-400">no transactions logged for this month</td></tr>`;
+        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found for this month</td></tr>`;
     } else {
         active.forEach(exp => {
-            const catKey = (exp.category || 'other').toLowerCase();
-            const meta = CATEGORY_MAP[catKey] || CATEGORY_MAP['other'];
-            
-            let dateFormatted = exp.date;
-            if (exp.date && exp.date.includes('-')) {
-                const [y, m, d] = exp.date.split('-');
-                dateFormatted = `${d}/${m}/${y}`;
-            }
+            const meta = (CATEGORY_MAP && CATEGORY_MAP[exp.category]) || { emoji: '💰', color: 'bg-gray-100' };
+            const dateParts = exp.date ? exp.date.split('-') : ['2026', '01', '01'];
+            const [y, m, d] = dateParts.length === 3 ? dateParts : ['2026', '01', '01'];
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
-                <td class="p-3.5 pl-6 text-gray-400 font-mono font-medium">${dateFormatted}</td>
-                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${meta.badgeColor} text-[11px] font-bold">${meta.emoji} ${catKey}</span></td>
+                <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
+                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${meta.color || 'bg-gray-100'} text-[11px] font-bold">${meta.emoji || '📦'} ${exp.category}</span></td>
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
-                <td class="p-3.5 text-right pr-6 font-extrabold text-gray-800">
+                <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                     <div class="flex items-center justify-end gap-2">
                         <span>-$${parseFloat(exp.amount).toFixed(2)}</span>
                         <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
@@ -320,10 +395,10 @@ function renderInlineLedger() {
     }
 
     tableHtml += `</tbody></table>`;
-    container.innerHTML = tableHtml;
+    tableContainer.innerHTML = tableHtml;
 }
 
-// --- MODALS & DELETION ---
+// --- ACTIONS & MODAL UTILS ---
 window.deleteExpense = async function(id) {
     try {
         const { error } = await supabase
@@ -332,9 +407,11 @@ window.deleteExpense = async function(id) {
             .eq('id', id);
 
         if (error) throw error;
-        await fetchExpensesFromSupabase();
+
+        globalExpensesCache = globalExpensesCache.filter(e => e.id != id);
+        renderExpenses();
     } catch (err) {
-        console.error('failed to delete expense:', err.message);
+        console.error("Failed to delete expense:", err.message);
     }
 };
 
@@ -348,7 +425,7 @@ window.openExpenseModal = function(id) {
     $('edit-expense-date').value = exp.date;
     $('edit-expense-category').value = exp.category;
 
-    $('edit-expense-modal')?.classList.remove('hidden');
+    $('edit-expense-modal').classList.remove('hidden');
 };
 
 window.closeExpenseModal = function() {
