@@ -5,7 +5,7 @@ if (typeof supabase === 'undefined') console.error('Supabase CDN missing.');
 
 const supabaseClient = supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
 
-// --- DOM HOOKS ---
+// --- DOM HOOKS & STATE ---
 const $ = id => document.getElementById(id);
 const actualToday = new Date();
 let displayDate = new Date(); 
@@ -174,7 +174,50 @@ function renderCalendarGrid() {
     }
 }
 
-// --- EXPENSES & MODALS ---
+// --- EXPENSES & FULLSCREEN TOGGLE ---
+window.toggleLedgerFullscreen = function() {
+    const expenseSection = $('mobile-sec-expenses');
+    const calendarSection = $('mobile-sec-calendar');
+    const timelineSection = $('mobile-sec-timeline');
+    const headingRow = $('expenses-heading-row');
+    const inputArea = $('ledger-input-area');
+    const workspaceWrapper = $('ledger-workspace-wrapper');
+    const summaryBlock = $('summary-card-block');
+    const zoomBtn = $('ledger-zoom-btn');
+    
+    if (!expenseSection) return;
+    const isExpanded = expenseSection.classList.contains('md:flex-1');
+    
+    if (!isExpanded) {
+        calendarSection?.classList.replace('md:flex', 'md:hidden');
+        timelineSection?.classList.replace('flex', 'md:hidden');
+        headingRow?.classList.add('hidden');
+        inputArea?.classList.add('hidden');
+        
+        expenseSection.classList.replace('md:w-96', 'md:flex-1');
+        expenseSection.classList.add('md:max-h-[85vh]');
+        
+        workspaceWrapper?.classList.replace('flex-col', 'flex-row');
+        if (summaryBlock) summaryBlock.className = "w-72 bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0 h-full overflow-y-auto no-scrollbar";
+        if (zoomBtn) zoomBtn.innerHTML = '<span>collapse view</span> ↙';
+    } else {
+        calendarSection?.classList.replace('md:hidden', 'md:flex');
+        timelineSection?.classList.replace('md:hidden', 'flex');
+        headingRow?.classList.remove('hidden');
+        inputArea?.classList.remove('hidden');
+        
+        expenseSection.classList.replace('md:flex-1', 'md:w-96');
+        expenseSection.classList.remove('md:max-h-[85vh]');
+        
+        workspaceWrapper?.classList.replace('flex-row', 'flex-col');
+        if (summaryBlock) summaryBlock.className = "bg-gray-50/60 p-4 rounded-2xl border border-gray-100 shrink-0";
+        if (zoomBtn) zoomBtn.innerHTML = '<span>expand view</span> ↗';
+    }
+    
+    renderExpenses();
+    renderCalendarGrid();
+};
+
 function parseExpenseInput(rawVal, fallbackDate = null) {
     const clean = rawVal.trim().toLowerCase();
     const defaultDate = fallbackDate || `${actualToday.getFullYear()}-${String(actualToday.getMonth() + 1).padStart(2, '0')}-${String(actualToday.getDate()).padStart(2, '0')}`;
@@ -242,23 +285,64 @@ function renderExpenses() {
         }));
     });
 
-    active.forEach(exp => {
-        const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
-        const [y, m, d] = exp.date.split('-');
-        const li = document.createElement('li');
-        li.className = "flex items-center justify-between p-3 bg-gray-50/50 rounded-2xl border border-gray-100/70 lowercase shadow-3xs cursor-pointer hover:bg-white transition-all";
-        li.onclick = () => openExpenseModal(exp.id);
-        li.innerHTML = `
-            <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm ${meta.color}">${meta.emoji}</div>
-                <div class="min-w-0"><div class="font-bold text-gray-700 truncate">${exp.description}</div><div class="text-[10px] text-gray-400">${d}/${m}/${y}</div></div>
-            </div>
-            <div class="flex items-center gap-1"><span class="font-extrabold text-gray-700">-$${parseFloat(exp.amount).toFixed(2)}</span><button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-2">✕</button></div>`;
-        list.appendChild(li);
-    });
+    const expenseSection = $('mobile-sec-expenses');
+    const isExpandedMode = expenseSection && expenseSection.classList.contains('md:flex-1');
+
+    if (isExpandedMode) {
+        const tableContainer = document.createElement('div');
+        tableContainer.className = "w-full h-full overflow-y-auto no-scrollbar border border-gray-100 rounded-2xl bg-white shadow-3xs";
+        
+        let tableHtml = `<table class="w-full text-left border-collapse text-xs lowercase relative">
+            <thead>
+                <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10">
+                    <th class="p-3.5 w-24 pl-5">date</th>
+                    <th class="p-3.5 w-36">category</th>
+                    <th class="p-3.5">description</th>
+                    <th class="p-3.5 w-28 text-right pr-6">amount</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">`;
+
+        active.forEach(exp => {
+            const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+            const [y, m, d] = exp.date.split('-');
+            tableHtml += `<tr onclick="openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
+                <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
+                <td class="p-3.5"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl ${meta.color} bg-opacity-70 text-[11px] font-bold shadow-4xs">${meta.emoji} ${exp.category}</span></td>
+                <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
+                <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
+                    <div class="flex items-center justify-end gap-2">
+                        <span>-$${parseFloat(exp.amount).toFixed(2)}</span>
+                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        tableHtml += `</tbody></table>`;
+        tableContainer.innerHTML = tableHtml;
+        list.appendChild(tableContainer);
+    } else {
+        active.forEach(exp => {
+            const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
+            const [y, m, d] = exp.date.split('-');
+            const li = document.createElement('li');
+            li.className = "flex items-center justify-between p-3 bg-gray-50/50 rounded-2xl border border-gray-100/70 lowercase shadow-3xs cursor-pointer hover:bg-white transition-all";
+            li.onclick = () => openExpenseModal(exp.id);
+            li.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm ${meta.color}">${meta.emoji}</div>
+                    <div class="min-w-0"><div class="font-bold text-gray-700 truncate">${exp.description}</div><div class="text-[10px] text-gray-400">${d}/${m}/${y}</div></div>
+                </div>
+                <div class="flex items-center gap-1"><span class="font-extrabold text-gray-700">-$${parseFloat(exp.amount).toFixed(2)}</span><button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-2">✕</button></div>`;
+            list.appendChild(li);
+        });
+    }
 }
 
+// --- MODAL HANDLERS ---
 window.deleteExpense = async id => { if (confirm("delete expense?")) { await supabaseClient.from('expenses').delete().eq('id', id); fetchAllData(); } };
+
 window.openModal = id => {
     const todo = globalTodosCache.find(t => t.id === id);
     if (!todo) return;
@@ -270,7 +354,30 @@ window.openModal = id => {
     if ($('modal-task-time')) $('modal-task-time').value = t;
     $('task-modal')?.classList.remove('hidden');
 };
+
 window.closeModal = () => $('task-modal')?.classList.add('hidden');
+
+window.saveModalChanges = async function() {
+    const id = $('modal-task-id')?.value;
+    const title = $('modal-task-title')?.value.trim().toLowerCase();
+    const d = $('modal-task-date')?.value;
+    const t = $('modal-task-time')?.value;
+    const notes = $('modal-task-notes')?.value;
+    const prog = parseInt($('modal-task-progress')?.value || '0', 10);
+
+    if (!title || !d) return alert('description and date required.');
+
+    await supabaseClient.from('todos').update({ 
+        title, 
+        due_date: t ? `${d} ${t}` : d, 
+        notes, 
+        progress: prog, 
+        is_completed: (prog === 100) 
+    }).eq('id', id);
+    
+    closeModal();
+    fetchAllData();
+};
 
 window.openExpenseModal = id => {
     const exp = globalExpensesCache.find(e => e.id === id);
@@ -278,6 +385,7 @@ window.openExpenseModal = id => {
     ['id', 'date', 'amount', 'description', 'category'].forEach(k => { if ($(`modal-expense-${k}`)) $(`modal-expense-${k}`).value = exp[k] || ''; });
     $('expense-modal')?.classList.remove('hidden');
 };
+
 window.closeExpenseModal = () => $('expense-modal')?.classList.add('hidden');
 
 window.saveExpenseModalChanges = async () => {
@@ -303,6 +411,7 @@ window.showDaySchedulePopup = (dateStr, dayTasks) => {
     });
     popup.classList.remove('hidden');
 };
+
 window.closeDaySchedulePopup = () => $('calendar-day-popup')?.classList.add('hidden');
 
 window.fastToggleTodo = async (id, status) => { await supabaseClient.from('todos').update({ is_completed: !status, progress: !status ? 100 : 0 }).eq('id', id); fetchAllData(); };
