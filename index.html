@@ -4,520 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>expense tracker</title>
-    <!-- Tailwind CSS V4 -->
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 font-sans antialiased">
+<body class="bg-gray-50 text-gray-800 min-h-screen pb-12">
 
-    <!-- MAIN APP CONTAINER -->
-    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
-        
-        <!-- HEADER / NAVIGATION -->
-        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
-            <div>
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 lowercase">expense tracker 💸</h1>
-                <p class="text-xs text-gray-400 font-medium lowercase">monthly overview & transaction ledger</p>
+    <!-- HEADER / NAV -->
+    <header class="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div class="max-w-xl mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-base font-extrabold text-gray-900 tracking-tight lowercase">expense tracker</h1>
+            <div class="flex gap-2">
+                <a href="index.html" class="px-3 py-1.5 bg-purple-50 text-purple-600 text-xs font-bold rounded-xl lowercase">expenses</a>
+                <a href="tasks.html" class="px-3 py-1.5 text-gray-400 hover:text-gray-600 text-xs font-bold rounded-xl transition-colors lowercase">tasks</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto px-6 pt-6 space-y-6">
+
+        <!-- MONTH NAVIGATION -->
+        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
+            <button id="prev-month-btn" class="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 font-bold text-sm transition-colors cursor-pointer">←</button>
+            <span id="current-month-display" class="text-sm font-extrabold text-gray-800 lowercase tracking-wide">july 2026</span>
+            <button id="next-month-btn" class="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 font-bold text-sm transition-colors cursor-pointer">→</button>
+        </div>
+
+        <!-- VISUAL STATS / CATEGORY BREAKDOWN -->
+        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xs font-black text-gray-400 lowercase tracking-wider">monthly breakdown</h2>
+                <button id="open-ledger-btn" class="text-xs font-bold text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer lowercase">expand ledger ↗</button>
+            </div>
+            <div id="expense-visual-stats" class="space-y-3">
+                <!-- Dynamic categories injected here -->
+            </div>
+        </div>
+
+        <!-- ADD SINGLE EXPENSE FORM -->
+        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+            <h2 class="text-xs font-black text-gray-400 lowercase tracking-wider">add single transaction</h2>
+            <form id="expense-form" class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="expense-desc" placeholder="description" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase">
+                    <input type="number" step="0.01" id="expense-amount" placeholder="amount ($)" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" id="expense-date" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold text-gray-600">
+                    <select id="expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase text-gray-600">
+                        <option value="food & drink">🍔 food & drink</option>
+                        <option value="shopping">🛍️ shopping</option>
+                        <option value="subscriptions">📺 subscriptions</option>
+                        <option value="events">🎟️ events</option>
+                        <option value="fees">💵 fees</option>
+                        <option value="health">💊 health</option>
+                        <option value="transport">🚌 transport</option>
+                        <option value="utilities">⚡ utilities</option>
+                        <option value="other">📦 other</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer lowercase">add expense</button>
+            </form>
+        </div>
+
+        <!-- BULK JSON IMPORT CARD -->
+        <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xs font-black text-gray-400 lowercase tracking-wider">bulk transaction import ⚡</h2>
+                <span class="text-[10px] font-bold bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full lowercase">json mode</span>
             </div>
             
-            <div class="flex items-center gap-3">
-                <a href="tasks.html" class="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-2xl transition-all lowercase">
-                    task list 📝
-                </a>
+            <textarea id="json-text-input" rows="5" placeholder='paste gemini json here...' class="w-full px-4 py-3 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-mono text-gray-700 placeholder:text-gray-300"></textarea>
 
-                <!-- Month Selector -->
-                <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
-                    <button id="prev-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">←</button>
-                    <span id="current-month-display" class="text-xs font-bold px-3 text-gray-700 lowercase">jul 2026</span>
-                    <button id="next-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">→</button>
+            <button id="import-json-btn" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
+                import entries
+            </button>
+        </div>
+
+    </main>
+
+    <!-- EXPANDED FULLSCREEN LEDGER MODAL -->
+    <div id="expanded-ledger-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                    <h3 class="text-base font-extrabold text-gray-900 lowercase">transaction ledger</h3>
+                    <p id="expanded-month-label" class="text-xs font-bold text-gray-400 lowercase mt-0.5">july 2026</p>
                 </div>
+                <button id="close-ledger-btn" class="p-2 text-gray-400 hover:text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors cursor-pointer text-sm">✕</button>
             </div>
-        </header>
-
-        <!-- DASHBOARD GRID -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- LEFT COLUMN: ADD EXPENSE & PIPED PASTE -->
-            <div class="space-y-6">
-                
-                <!-- Entry Form Card -->
-                <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
-                    
-                    <!-- TAB SWITCHER UI FOR CLEAR BULK PASTE -->
-                    <div class="flex bg-gray-100 p-1 rounded-2xl gap-1">
-                        <button id="tab-single-btn" type="button" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white text-gray-800 shadow-2xs transition-all lowercase">
-                            single entry
-                        </button>
-                        <button id="tab-pipe-btn" type="button" class="flex-1 py-2 text-xs font-bold rounded-xl text-gray-500 hover:text-gray-800 transition-all lowercase">
-                            📋 bulk pipe paste
-                        </button>
-                    </div>
-
-                    <!-- SINGLE ENTRY FORM -->
-                    <form id="expense-form" class="space-y-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">description</label>
-                            <input type="text" id="expense-desc" required placeholder="e.g. coffee / uniqlo" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">amount ($)</label>
-                                <input type="number" step="0.01" id="expense-amount" required placeholder="0.00" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">date</label>
-                                <input type="date" id="expense-date" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">category</label>
-                            <select id="expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
-                                <option value="food & drink">food & drink</option>
-                                <option value="shopping">shopping</option>
-                                <option value="clothing">clothing</option>
-                                <option value="transport">transport</option>
-                                <option value="travel">travel</option>
-                                <option value="subscriptions">subscriptions</option>
-                                <option value="mobile">mobile</option>
-                                <option value="events">events</option>
-                                <option value="fees">fees</option>
-                                <option value="education">education</option>
-                                <option value="health">health</option>
-                                <option value="utilities">utilities</option>
-                                <option value="other">other</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
-                            add entry
-                        </button>
-                    </form>
-
-                    <!-- BULK PIPE PASTE CONTAINER -->
-                    <div id="piped-input-container" class="hidden space-y-3">
-                        <div class="bg-purple-50 p-3 rounded-2xl border border-purple-100 space-y-2">
-                            <label class="block text-[10px] font-bold text-purple-800 lowercase">
-                                paste pipe-separated text or markdown table below:
-                            </label>
-                            <textarea id="piped-text-input" rows="5" placeholder="| date | category | amount | description |&#10;| 21/07/2026 | food & drink | 16.65 | lunch |" class="w-full p-2.5 text-xs bg-white rounded-xl border border-purple-200 focus:outline-none focus:border-purple-500 font-mono text-gray-700 leading-relaxed"></textarea>
-                        </div>
-                        <button id="import-piped-btn" type="button" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
-                            import piped transactions
-                        </button>
-                    </div>
-
-                </div>
-
-                <!-- Monthly Breakdown Visuals -->
-                <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
-                    <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">monthly breakdown</h2>
-                    <div id="expense-visual-stats" class="space-y-3.5">
-                        <div class="text-xs text-gray-400 lowercase text-center py-4">loading breakdown...</div>
-                    </div>
+            <div id="expanded-table-container" class="overflow-y-auto flex-1">
+                <!-- Dynamic table injected here -->
+            </div>
+            
+            <div class="p-6 border-t border-gray-100 bg-gray-50/30">
+                <div id="expanded-visual-stats" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Cloned stats injected here -->
                 </div>
             </div>
-
-            <!-- RIGHT COLUMN: EMBEDDED INLINE TRANSACTION LEDGER -->
-            <div class="lg:col-span-2 bg-white rounded-3xl shadow-xs border border-gray-100 flex flex-col overflow-hidden min-h-[500px]">
-                <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-base font-black text-gray-800 lowercase tracking-tight">transaction ledger 💰</h2>
-                        <p class="text-xs text-gray-400 font-medium lowercase">all transactions for selected month</p>
-                    </div>
-                    <span id="ledger-month-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 lowercase"></span>
-                </div>
-
-                <div class="flex-1 overflow-x-auto overflow-y-auto no-scrollbar" id="inline-ledger-container">
-                    <!-- Table dynamically injected here -->
-                </div>
-            </div>
-
         </div>
     </div>
 
-    <!-- EDIT TRANSACTION MODAL -->
-    <div id="edit-expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
-                <h3 class="font-black text-sm lowercase">edit transaction</h3>
-                <button id="close-edit-modal-btn" class="text-xs font-bold text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
-            </div>
+    <!-- EDIT EXPENSE MODAL -->
+    <div id="edit-expense-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 class="text-sm font-extrabold text-gray-900 lowercase">edit expense</h3>
             <form id="edit-expense-form" class="space-y-3">
                 <input type="hidden" id="edit-expense-id">
                 <div>
-                    <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">description</label>
-                    <input type="text" id="edit-expense-desc" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">description</label>
+                    <input type="text" id="edit-expense-desc" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">amount ($)</label>
+                    <input type="number" step="0.01" id="edit-expense-amount" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">amount ($)</label>
-                        <input type="number" step="0.01" id="edit-expense-amount" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">date</label>
+                        <input type="date" id="edit-expense-date" required class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold text-gray-600">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">date</label>
-                        <input type="date" id="edit-expense-date" required class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">category</label>
+                        <select id="edit-expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-semibold lowercase text-gray-600">
+                            <option value="food & drink">🍔 food & drink</option>
+                            <option value="shopping">🛍️ shopping</option>
+                            <option value="subscriptions">📺 subscriptions</option>
+                            <option value="events">🎟️ events</option>
+                            <option value="fees">💵 fees</option>
+                            <option value="health">💊 health</option>
+                            <option value="transport">🚌 transport</option>
+                            <option value="utilities">⚡ utilities</option>
+                            <option value="other">📦 other</option>
+                        </select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">category</label>
-                    <select id="edit-expense-category" class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
-                        <option value="food & drink">food & drink</option>
-                        <option value="shopping">shopping</option>
-                        <option value="clothing">clothing</option>
-                        <option value="transport">transport</option>
-                        <option value="travel">travel</option>
-                        <option value="subscriptions">subscriptions</option>
-                        <option value="mobile">mobile</option>
-                        <option value="events">events</option>
-                        <option value="fees">fees</option>
-                        <option value="education">education</option>
-                        <option value="health">health</option>
-                        <option value="utilities">utilities</option>
-                        <option value="other">other</option>
-                    </select>
-                </div>
                 <div class="flex gap-2 pt-2">
-                    <button type="button" id="cancel-edit-modal-btn" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl cursor-pointer lowercase">cancel</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-xl cursor-pointer lowercase">save changes</button>
+                    <button type="button" id="cancel-edit-modal-btn" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-xl transition-all cursor-pointer lowercase">cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer lowercase">save changes</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- APPLICATION SCRIPT -->
-    <script type="module">
-        import { APP_CONFIG, CATEGORY_MAP } from './config.js';
-
-        const supabase = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
-        const $ = (id) => document.getElementById(id);
-
-        let globalExpensesCache = [];
-        let displayDate = new Date();
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initDefaultDate();
-            setupEventListeners();
-            fetchExpensesFromSupabase();
-        });
-
-        function initDefaultDate() {
-            const today = new Date().toISOString().split('T')[0];
-            if ($('expense-date')) $('expense-date').value = today;
-            updateMonthDisplay();
-        }
-
-        function updateMonthDisplay() {
-            const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-            const monthText = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
-            if ($('current-month-display')) $('current-month-display').textContent = monthText;
-            if ($('ledger-month-badge')) $('ledger-month-badge').textContent = monthText;
-        }
-
-        async function fetchExpensesFromSupabase() {
-            try {
-                const { data, error } = await supabase
-                    .from('expenses')
-                    .select('*')
-                    .order('date', { ascending: false });
-
-                if (error) throw error;
-
-                globalExpensesCache = data || [];
-                renderExpenses();
-            } catch (err) {
-                console.error("error fetching expenses from supabase:", err.message);
-            }
-        }
-
-        function setupEventListeners() {
-            // Tab Switcher for Bulk Pipe Paste
-            $('tab-single-btn')?.addEventListener('click', () => {
-                $('expense-form').classList.remove('hidden');
-                $('piped-input-container').classList.add('hidden');
-                $('tab-single-btn').className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-white text-gray-800 shadow-2xs transition-all lowercase';
-                $('tab-pipe-btn').className = 'flex-1 py-2 text-xs font-bold rounded-xl text-gray-500 hover:text-gray-800 transition-all lowercase';
-            });
-
-            $('tab-pipe-btn')?.addEventListener('click', () => {
-                $('expense-form').classList.add('hidden');
-                $('piped-input-container').classList.remove('hidden');
-                $('tab-pipe-btn').className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-white text-gray-800 shadow-2xs transition-all lowercase';
-                $('tab-single-btn').className = 'flex-1 py-2 text-xs font-bold rounded-xl text-gray-500 hover:text-gray-800 transition-all lowercase';
-            });
-
-            // Single Entry Submit
-            $('expense-form')?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const description = $('expense-desc').value.trim().toLowerCase();
-                const amount = parseFloat($('expense-amount').value);
-                const date = $('expense-date').value;
-                const category = $('expense-category').value.toLowerCase();
-
-                try {
-                    const { error } = await supabase
-                        .from('expenses')
-                        .insert([{ description, amount, date, category }]);
-
-                    if (error) throw error;
-
-                    $('expense-form').reset();
-                    initDefaultDate();
-                    await fetchExpensesFromSupabase();
-                } catch (err) {
-                    console.error('failed to add expense:', err.message);
-                }
-            });
-
-            // Piped Import Handler
-            $('import-piped-btn')?.addEventListener('click', async () => {
-                const text = $('piped-text-input')?.value.trim();
-                if (!text) return;
-
-                const parsedEntries = parsePipedResponses(text);
-                if (parsedEntries.length === 0) {
-                    alert('no valid entries parsed. check the piped format!');
-                    return;
-                }
-
-                try {
-                    const { error } = await supabase.from('expenses').insert(parsedEntries);
-                    if (error) throw error;
-
-                    $('piped-text-input').value = '';
-                    $('tab-single-btn').click();
-                    await fetchExpensesFromSupabase();
-                } catch (err) {
-                    console.error('failed to insert piped expenses:', err.message);
-                }
-            });
-
-            // Edit Form Submit
-            $('edit-expense-form')?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const id = $('edit-expense-id').value;
-                const description = $('edit-expense-desc').value.trim().toLowerCase();
-                const amount = parseFloat($('edit-expense-amount').value);
-                const date = $('edit-expense-date').value;
-                const category = $('edit-expense-category').value.toLowerCase();
-
-                try {
-                    const { error } = await supabase
-                        .from('expenses')
-                        .update({ description, amount, date, category })
-                        .eq('id', id);
-
-                    if (error) throw error;
-
-                    closeExpenseModal();
-                    await fetchExpensesFromSupabase();
-                } catch (err) {
-                    console.error('failed to update expense:', err.message);
-                }
-            });
-
-            // Month Navigation
-            $('prev-month-btn')?.addEventListener('click', () => {
-                displayDate.setMonth(displayDate.getMonth() - 1);
-                updateMonthDisplay();
-                renderExpenses();
-            });
-
-            $('next-month-btn')?.addEventListener('click', () => {
-                displayDate.setMonth(displayDate.getMonth() + 1);
-                updateMonthDisplay();
-                renderExpenses();
-            });
-
-            $('close-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
-            $('cancel-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
-        }
-
-        function parsePipedResponses(rawText) {
-            const lines = rawText.split('\n');
-            const entries = [];
-
-            lines.forEach(line => {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-')) return;
-
-                const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
-                if (parts.length < 3) return;
-
-                if (parts[0].toLowerCase() === 'date' || parts[1].toLowerCase() === 'category') return;
-
-                let [rawDate, category, amountStr, description] = parts;
-                if (!description && parts.length === 3) {
-                    description = category;
-                    category = 'other';
-                }
-
-                let date = rawDate;
-                if (rawDate.includes('/')) {
-                    const dateParts = rawDate.split('/');
-                    if (dateParts.length === 3) {
-                        const [d, m, y] = dateParts;
-                        date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                    }
-                }
-
-                const amount = parseFloat(amountStr?.replace(/[^0-9.]/g, '')) || 0;
-                let cleanCategory = (category || 'other').toLowerCase();
-
-                if (!CATEGORY_MAP[cleanCategory]) {
-                    cleanCategory = 'other';
-                }
-
-                if (amount > 0 && date) {
-                    entries.push({
-                        date,
-                        category: cleanCategory,
-                        amount,
-                        description: (description || 'expense').toLowerCase()
-                    });
-                }
-            });
-
-            return entries;
-        }
-
-        function renderExpenses() {
-            renderMonthlyBreakdown();
-            renderInlineLedger();
-        }
-
-        function renderMonthlyBreakdown() {
-            const stats = $('expense-visual-stats');
-            if (!stats) return;
-
-            stats.innerHTML = '';
-
-            const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
-            const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
-
-            let totals = {};
-            let totalAll = 0;
-
-            active.forEach(e => {
-                const amt = parseFloat(e.amount) || 0;
-                const cat = (e.category || 'other').toLowerCase();
-                totals[cat] = (totals[cat] || 0) + amt;
-                totalAll += amt;
-            });
-
-            const categoriesWithExpenses = Object.entries(totals).filter(([_, sum]) => sum > 0);
-
-            if (categoriesWithExpenses.length === 0) {
-                stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
-                return;
-            }
-
-            categoriesWithExpenses.sort((a, b) => b[1] - a[1]);
-
-            categoriesWithExpenses.forEach(([cat, sum]) => {
-                const pct = totalAll > 0 ? (sum / totalAll) * 100 : 0;
-                const meta = CATEGORY_MAP[cat] || CATEGORY_MAP['other'];
-
-                const itemEl = document.createElement('div');
-                itemEl.className = "text-xs lowercase space-y-1";
-                itemEl.innerHTML = `
-                    <div class="flex justify-between font-semibold text-gray-600 items-center">
-                        <span class="font-bold text-gray-700 inline-flex items-center gap-1.5">
-                            <span>${meta.emoji}</span>
-                            <span>${cat}</span>
-                        </span>
-                        <span class="font-bold text-gray-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
-                    </div>
-                    <div class="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                        <div class="${meta.barColor} h-full transition-all duration-500" style="width: ${pct}%"></div>
-                    </div>
-                `;
-                stats.appendChild(itemEl);
-            });
-        }
-
-        function renderInlineLedger() {
-            const container = $('inline-ledger-container');
-            if (!container) return;
-
-            const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
-            const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
-
-            let tableHtml = `<table class="w-full text-left border-collapse text-xs lowercase relative">
-                <thead>
-                    <tr class="bg-gray-50/80 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10 backdrop-blur-xs">
-                        <th class="p-3.5 w-28 pl-6">date</th>
-                        <th class="p-3.5 w-40">category</th>
-                        <th class="p-3.5">description</th>
-                        <th class="p-3.5 w-32 text-right pr-6">amount</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">`;
-
-            if (active.length === 0) {
-                tableHtml += `<tr><td colspan="4" class="p-12 text-center text-gray-400">no transactions logged for this month</td></tr>`;
-            } else {
-                active.forEach(exp => {
-                    const catKey = (exp.category || 'other').toLowerCase();
-                    const meta = CATEGORY_MAP[catKey] || CATEGORY_MAP['other'];
-                    
-                    let dateFormatted = exp.date;
-                    if (exp.date && exp.date.includes('-')) {
-                        const [y, m, d] = exp.date.split('-');
-                        dateFormatted = `${d}/${m}/${y}`;
-                    }
-
-                    tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
-                        <td class="p-3.5 pl-6 text-gray-400 font-mono font-medium">${dateFormatted}</td>
-                        <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${meta.badgeColor} text-[11px] font-bold">${meta.emoji} ${catKey}</span></td>
-                        <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
-                        <td class="p-3.5 text-right pr-6 font-extrabold text-gray-800">
-                            <div class="flex items-center justify-end gap-2">
-                                <span>-$${parseFloat(exp.amount).toFixed(2)}</span>
-                                <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
-                            </div>
-                        </td>
-                    </tr>`;
-                });
-            }
-
-            tableHtml += `</tbody></table>`;
-            container.innerHTML = tableHtml;
-        }
-
-        window.deleteExpense = async function(id) {
-            try {
-                const { error } = await supabase
-                    .from('expenses')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) throw error;
-                await fetchExpensesFromSupabase();
-            } catch (err) {
-                console.error('failed to delete expense:', err.message);
-            }
-        };
-
-        window.openExpenseModal = function(id) {
-            const exp = globalExpensesCache.find(e => e.id == id);
-            if (!exp) return;
-
-            $('edit-expense-id').value = exp.id;
-            $('edit-expense-desc').value = exp.description;
-            $('edit-expense-amount').value = exp.amount;
-            $('edit-expense-date').value = exp.date;
-            $('edit-expense-category').value = exp.category;
-
-            $('edit-expense-modal')?.classList.remove('hidden');
-        };
-
-        window.closeExpenseModal = function() {
-            $('edit-expense-modal')?.classList.add('hidden');
-        };
-    </script>
+    <!-- SUPABASE JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
