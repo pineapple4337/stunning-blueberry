@@ -19,10 +19,9 @@ function setupEventListeners() {
         if (!title) return;
 
         try {
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('todos')
-                .insert([{ title, is_complete: false }])
-                .select();
+                .insert([{ title, is_complete: false }]);
 
             if (error) throw error;
 
@@ -36,6 +35,8 @@ function setupEventListeners() {
 
 async function fetchTasks() {
     const list = $('task-list');
+    if (!list) return;
+
     try {
         const { data: todos, error } = await supabase
             .from('todos')
@@ -79,7 +80,6 @@ async function fetchTasks() {
     }
 }
 
-// Window actions for inline event handlers
 window.toggleTask = async function(id, is_complete) {
     try {
         const { error } = await supabase
