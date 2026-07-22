@@ -29,15 +29,26 @@ function updateMonthDisplay() {
     }
 }
 
-// --- DATE HELPER TO PARSE MULTIPLE FORMATS ---
+// --- HELPER: SAFE AMOUNT PARSER ---
+function parseAmount(val) {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    // Strip $, commas, and non-numeric chars except dot
+    const cleaned = String(val).replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+// --- HELPER: ROBUST DATE PARSER ---
 function parseEntryDate(dateStr) {
-    if (!dateStr) return { year: null, month: null, displayStr: '01/01/1970' };
+    if (!dateStr) return { year: null, month: null, displayStr: '01/01/1970', isoDate: '' };
     
     let y, m, d;
+    const str = String(dateStr).trim();
     
     // Format 1: DD/MM/YYYY
-    if (typeof dateStr === 'string' && dateStr.includes('/')) {
-        const parts = dateStr.split('/');
+    if (str.includes('/')) {
+        const parts = str.split('/');
         if (parts.length === 3) {
             d = parts[0].padStart(2, '0');
             m = parts[1].padStart(2, '0');
@@ -45,8 +56,8 @@ function parseEntryDate(dateStr) {
         }
     } 
     // Format 2: YYYY-MM-DD or ISO String
-    else if (typeof dateStr === 'string' && dateStr.includes('-')) {
-        const cleanStr = dateStr.split('T')[0];
+    else if (str.includes('-')) {
+        const cleanStr = str.split('T')[0];
         const parts = cleanStr.split('-');
         if (parts.length === 3) {
             y = parts[0];
@@ -64,7 +75,7 @@ function parseEntryDate(dateStr) {
         };
     }
 
-    return { year: null, month: null, displayStr: dateStr };
+    return { year: null, month: null, displayStr: str, isoDate: str };
 }
 
 // --- FETCH FROM SUPABASE ---
@@ -83,6 +94,7 @@ async function fetchExpensesFromSupabase() {
         if (error) throw error;
 
         globalExpensesCache = data || [];
+        console.log("Raw items loaded from Supabase:", globalExpensesCache);
         renderExpenses();
     } catch (err) {
         console.error("Error fetching expenses from Supabase:", err.message);
@@ -96,7 +108,7 @@ function setupEventListeners() {
         e.preventDefault();
         const newExpense = {
             description: $('expense-desc').value.toLowerCase(),
-            amount: parseFloat($('expense-amount').value),
+            amount: parseAmount($('expense-amount').value),
             date: $('expense-date').value,
             category: $('expense-category').value
         };
@@ -130,7 +142,6 @@ function setupEventListeners() {
             return;
         }
 
-        // Strip markdown code block wrappers if Gemini wraps response in ```json ... ```
         if (rawText.startsWith('```')) {
             rawText = rawText.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
         }
@@ -143,11 +154,8 @@ function setupEventListeners() {
                 return;
             }
 
-            // Clean & format fields
             const formattedEntries = parsed.map(item => {
                 let date = item.date;
-
-                // Convert DD/MM/YYYY to YYYY-MM-DD if necessary
                 if (date && date.includes('/')) {
                     const [d, m, y] = date.split('/');
                     date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
@@ -156,12 +164,11 @@ function setupEventListeners() {
                 return {
                     date: date,
                     category: (item.category || 'other').toLowerCase().trim(),
-                    amount: parseFloat(item.amount) || 0,
+                    amount: parseAmount(item.amount),
                     description: (item.description || 'expense').toLowerCase().trim()
                 };
             });
 
-            // Batch insert into Supabase
             const { data, error } = await supabase
                 .from('expenses')
                 .insert(formattedEntries)
@@ -172,12 +179,11 @@ function setupEventListeners() {
             alert(`successfully imported ${formattedEntries.length} entries!`);
             $('json-text-input').value = '';
             
-            // Refresh UI
             await fetchExpensesFromSupabase();
 
         } catch (err) {
             console.error("JSON import error:", err);
-            alert(`could not parse json. make sure gemini's output matches the raw json array format.\n\nError: ${err.message}`);
+            alert(`could not parse json. error: ${err.message}`);
         }
     });
 
@@ -187,7 +193,7 @@ function setupEventListeners() {
         const id = $('edit-expense-id').value;
         const updatedFields = {
             description: $('edit-expense-desc').value.toLowerCase(),
-            amount: parseFloat($('edit-expense-amount').value),
+            amount: parseAmount($('edit-expense-amount').value),
             date: $('edit-expense-date').value,
             category: $('edit-expense-category').value
         };
@@ -255,7 +261,6 @@ function renderExpenses() {
 
     let totals = {}, totalAll = 0;
     
-    // Build initial category map
     const activeCatMap = CATEGORY_MAP || {
         'food & drink': { emoji: '🍔', barColor: 'bg-rose-300', badgeColor: 'bg-rose-100 text-rose-800' },
         'shopping': { emoji: '🛍️', barColor: 'bg-pink-300', badgeColor: 'bg-amber-100 text-amber-800' },
@@ -279,11 +284,14 @@ function renderExpenses() {
         return parsed.year === selectedYear && parsed.month === selectedMonth;
     });
 
+    console.log(`Active items for ${selectedMonth}/${selectedYear}:`, active);
+
     active.forEach(e => {
-        const a = parseFloat(e.amount) || 0;
+        const a = parseAmount(e.amount);
         totalAll += a;
-        if (totals[e.category] !== undefined) {
-            totals[e.category] += a;
+        const cat = (e.category || 'other').toLowerCase();
+        if (totals[cat] !== undefined) {
+            totals[cat] += a;
         } else {
             totals['other'] = (totals['other'] || 0) + a;
         }
@@ -352,14 +360,12 @@ function renderExpandedLedger() {
     const selectedYear = displayDate.getFullYear();
     const selectedMonth = displayDate.getMonth() + 1;
 
-    // Filter using robust parser
     const active = globalExpensesCache.filter(e => {
         const parsed = parseEntryDate(e.date);
         return parsed.year === selectedYear && parsed.month === selectedMonth;
     });
 
-    // Calculate month total for expanded header
-    const totalAll = active.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const totalAll = active.reduce((sum, e) => sum + parseAmount(e.amount), 0);
     if (expandedTotal) {
         expandedTotal.textContent = `$${totalAll.toFixed(2)}`;
     }
@@ -384,8 +390,8 @@ function renderExpandedLedger() {
             const catKey = (exp.category || 'other').toLowerCase();
             const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800' };
             const badgeClass = meta.badgeColor || 'bg-gray-100 text-gray-800';
-
             const parsedDate = parseEntryDate(exp.date);
+            const amt = parseAmount(exp.amount);
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
                 <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${parsedDate.displayStr}</td>
@@ -393,7 +399,7 @@ function renderExpandedLedger() {
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
                 <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                     <div class="flex items-center justify-end gap-2">
-                        <span>-$${parseFloat(exp.amount).toFixed(2)}</span>
+                        <span>-$${amt.toFixed(2)}</span>
                         <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
                     </div>
                 </td>
@@ -428,9 +434,8 @@ window.openExpenseModal = function(id) {
 
     $('edit-expense-id').value = exp.id;
     $('edit-expense-desc').value = exp.description;
-    $('edit-expense-amount').value = exp.amount;
+    $('edit-expense-amount').value = parseAmount(exp.amount);
     
-    // Ensure date input receives YYYY-MM-DD
     const parsed = parseEntryDate(exp.date);
     $('edit-expense-date').value = parsed.isoDate || exp.date;
     
