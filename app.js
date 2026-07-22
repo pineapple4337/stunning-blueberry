@@ -5,14 +5,16 @@ const $ = (id) => document.getElementById(id);
 let globalExpensesCache = [];
 let displayDate = new Date();
 
-// --- CATEGORY CONFIGURATION ---
+// --- COHESIVE PASTEL PALETTE CATEGORY MAP ---
 const CATEGORY_MAP = {
-    'food & drink': { emoji: '🍱', color: 'bg-emerald-100 text-emerald-800' },
-    'shopping': { emoji: '🛍️', color: 'bg-purple-100 text-purple-800' },
-    'transport': { emoji: '🚗', color: 'bg-blue-100 text-blue-800' },
-    'entertainment': { emoji: '🎬', color: 'bg-amber-100 text-amber-800' },
-    'utilities': { emoji: '💡', color: 'bg-rose-100 text-rose-800' },
-    'other': { emoji: '📦', color: 'bg-gray-100 text-gray-800' }
+    'food & drink': { emoji: '🍔', badgeColor: 'bg-rose-100 text-rose-800', barColor: 'bg-rose-300' },
+    'shopping': { emoji: '🛍️', badgeColor: 'bg-pink-100 text-pink-800', barColor: 'bg-pink-300' },
+    'subscriptions': { emoji: '📺', badgeColor: 'bg-purple-100 text-purple-800', barColor: 'bg-purple-300' },
+    'events': { emoji: '🎟️', badgeColor: 'bg-indigo-100 text-indigo-800', barColor: 'bg-indigo-300' },
+    'fees': { emoji: '💵', badgeColor: 'bg-blue-100 text-blue-800', barColor: 'bg-blue-300' },
+    'health': { emoji: '💊', badgeColor: 'bg-teal-100 text-teal-800', barColor: 'bg-teal-300' },
+    'transport': { emoji: '🚌', badgeColor: 'bg-emerald-100 text-emerald-800', barColor: 'bg-emerald-300' },
+    'other': { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800', barColor: 'bg-gray-300' }
 };
 
 // --- INITIALIZATION ---
@@ -111,23 +113,22 @@ function loadExpenses() {
             globalExpensesCache = [];
         }
     } else {
-        // Default Mock Data if Empty
+        // Mock Sample Data
         globalExpensesCache = [
             { id: '1', description: 'muji notebook', amount: 8.50, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-02`, category: 'shopping' },
-            { id: '2', description: 'iced matcha lattea', amount: 6.80, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-05`, category: 'food & drink' }
+            { id: '2', description: 'iced matcha latte', amount: 6.80, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-05`, category: 'food & drink' },
+            { id: '3', description: 'mrt transport', amount: 3.20, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-08`, category: 'transport' }
         ];
         saveExpenses();
     }
     renderExpenses();
 }
 
-// --- MAIN RENDER LOGIC ---
+// --- RENDER MONTHLY BREAKDOWN (ALL CATEGORIES WITH EXPENSES) ---
 function renderExpenses() {
-    const list = $('expense-ledger-list');
     const stats = $('expense-visual-stats');
-    if (!list || !stats) return;
+    if (!stats) return;
 
-    list.innerHTML = '';
     stats.innerHTML = '';
 
     let totals = {}, totalAll = 0;
@@ -141,51 +142,38 @@ function renderExpenses() {
         if (totals[e.category] !== undefined) totals[e.category] += a;
     });
 
-    // Render Progress Bars
+    let hasEntries = false;
+
+    // Render progress bars for ALL categories with expenses
     Object.entries(totals).forEach(([cat, sum]) => {
-        if (!sum) return;
+        if (!sum) return; // Skip categories with $0.00
+        hasEntries = true;
         const pct = totalAll ? (sum / totalAll) * 100 : 0;
-        const meta = CATEGORY_MAP[cat] || { emoji: '📦', color: 'bg-purple-200 text-purple-800' };
+        const meta = CATEGORY_MAP[cat] || { emoji: '📦', barColor: 'bg-gray-300' };
+
         stats.appendChild(Object.assign(document.createElement('div'), {
             className: "text-xs lowercase",
             innerHTML: `<div class="flex justify-between font-semibold text-gray-600 items-center mb-1">
                 <span class="font-bold text-gray-700">${meta.emoji} ${cat}</span>
                 <span class="font-bold text-gray-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
-            <div class="w-full bg-gray-200/50 h-2 rounded-full overflow-hidden"><div class="${meta.color.split(' ')[0]} h-full" style="width: ${pct}%"></div></div>`
+            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div class="${meta.barColor} h-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>`
         }));
     });
 
-    // Render Compact List Items
-    if (active.length === 0) {
-        list.innerHTML = `<div class="p-8 text-center text-xs text-gray-400 lowercase">no transactions logged this month</div>`;
-    } else {
-        active.forEach(exp => {
-            const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200 text-gray-800' };
-            const [y, m, d] = exp.date.split('-');
-            const li = document.createElement('li');
-            li.className = "flex items-center justify-between p-3 bg-gray-50/50 rounded-2xl border border-gray-100/70 lowercase cursor-pointer hover:bg-white transition-all";
-            li.onclick = () => window.openExpenseModal(exp.id);
-            li.innerHTML = `
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm ${meta.color}">${meta.emoji}</div>
-                    <div class="min-w-0"><div class="font-bold text-gray-700 truncate">${exp.description}</div><div class="text-[10px] text-gray-400">${d}/${m}/${y}</div></div>
-                </div>
-                <div class="flex items-center gap-1">
-                    <span class="font-extrabold text-gray-700">-$${parseFloat(exp.amount).toFixed(2)}</span>
-                    <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-2 cursor-pointer">✕</button>
-                </div>`;
-            list.appendChild(li);
-        });
+    if (!hasEntries) {
+        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
     }
 
-    // Sync full view if open
+    // Sync expanded ledger modal if open
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
         renderExpandedLedger();
     }
 }
 
-// --- FULLSCREEN EXPANDED LEDGER LOGIC ---
+// --- FULLSCREEN EXPANDED LEDGER MODAL LOGIC ---
 window.toggleLedgerFullscreen = function() {
     const modal = $('expanded-ledger-modal');
     if (!modal) return;
@@ -211,7 +199,7 @@ function renderExpandedLedger() {
     const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
     const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
 
-    // Clone stats to modal left sidebar
+    // Clone monthly stats into modal sidebar
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
     // Render Table (dd/mm/yyyy date formatting)
@@ -230,11 +218,11 @@ function renderExpandedLedger() {
         tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found for this month</td></tr>`;
     } else {
         active.forEach(exp => {
-            const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200 text-gray-800' };
+            const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', badgeColor: 'bg-gray-100 text-gray-800' };
             const [y, m, d] = exp.date.split('-');
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
                 <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
-                <td class="p-3.5"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl ${meta.color} text-[11px] font-bold">${meta.emoji} ${exp.category}</span></td>
+                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${meta.badgeColor} text-[11px] font-bold">${meta.emoji} ${exp.category}</span></td>
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
                 <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                     <div class="flex items-center justify-end gap-2">
