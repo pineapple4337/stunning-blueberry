@@ -58,9 +58,11 @@
                             <select id="expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
                                 <option value="food & drink">food & drink</option>
                                 <option value="shopping">shopping</option>
+                                <option value="subscriptions">subscriptions</option>
+                                <option value="events">events</option>
+                                <option value="fees">fees</option>
+                                <option value="health">health</option>
                                 <option value="transport">transport</option>
-                                <option value="entertainment">entertainment</option>
-                                <option value="utilities">utilities</option>
                                 <option value="other">other</option>
                             </select>
                         </div>
@@ -71,29 +73,27 @@
                     </form>
                 </div>
 
-                <!-- Monthly Breakdown Visuals -->
+                <!-- Monthly Breakdown Visuals (Shows all categories with expenses) -->
                 <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
                     <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">monthly breakdown</h2>
-                    <div id="expense-visual-stats" class="space-y-3">
-                        <!-- Progress bars injected dynamically -->
+                    <div id="expense-visual-stats" class="space-y-3.5">
+                        <!-- Progress bars injected dynamically for all active categories -->
                     </div>
                 </div>
             </div>
 
-            <!-- RIGHT / MAIN: EXPENSE LIST LEDGER -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-xs border border-gray-100 flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">recent transactions</h2>
-                        <button onclick="toggleLedgerFullscreen()" class="px-3 py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl transition-all cursor-pointer lowercase">
-                            expand view ⤢
-                        </button>
-                    </div>
-
-                    <ul id="expense-ledger-list" class="space-y-2.5 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
-                        <!-- List items injected dynamically -->
-                    </ul>
+            <!-- RIGHT / MAIN: CENTRALISED EXPAND BUTTON CARD -->
+            <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-xs border border-gray-100 flex flex-col items-center justify-center text-center space-y-4 min-h-[350px]">
+                <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl shadow-3xs">
+                    📊
                 </div>
+                <div>
+                    <h2 class="text-lg font-black text-gray-800 lowercase tracking-tight">transaction ledger</h2>
+                    <p class="text-xs text-gray-400 font-medium lowercase max-w-xs mt-1">open the expanded full-screen table to view, edit, or manage all entries for this month.</p>
+                </div>
+                <button onclick="toggleLedgerFullscreen()" class="px-6 py-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition-all cursor-pointer lowercase tracking-wide flex items-center gap-2">
+                    <span>open full transaction ledger</span> ⤢
+                </button>
             </div>
 
         </div>
@@ -159,9 +159,11 @@
                     <select id="edit-expense-category" class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
                         <option value="food & drink">food & drink</option>
                         <option value="shopping">shopping</option>
+                        <option value="subscriptions">subscriptions</option>
+                        <option value="events">events</option>
+                        <option value="fees">fees</option>
+                        <option value="health">health</option>
                         <option value="transport">transport</option>
-                        <option value="entertainment">entertainment</option>
-                        <option value="utilities">utilities</option>
                         <option value="other">other</option>
                     </select>
                 </div>
