@@ -41,7 +41,7 @@ async function checkSession() {
     if (session) { fetchAllData(); resetInactivityTimer(); }
 }
 
-async function handleLogin(e) {
+window.handleLogin = async function(e) {
     if (e) e.preventDefault();
     const passcode = $('auth-passcode')?.value || '';
     const errorEl = $('auth-error');
@@ -65,7 +65,7 @@ async function handleLogin(e) {
         if (errorEl) { errorEl.textContent = "connection error."; errorEl.classList.remove('hidden'); }
         if (submitBtn) submitBtn.innerText = 'unlock app 🔓';
     }
-}
+};
 
 window.handleLogout = async () => { clearTimeout(inactivityTimer); await supabaseClient.auth.signOut(); window.location.reload(); };
 
@@ -123,13 +123,13 @@ function renderDashboard() {
         const parts = todo.due_date ? todo.due_date.split(' ') : [];
         const li = document.createElement('li');
         li.className = `flex gap-3.5 items-start p-4 rounded-2xl border border-black/5 shadow-2xs hover:shadow-xs hover:scale-[1.01] transition-all duration-200 cursor-pointer ${pinkPurpleColors[index % pinkPurpleColors.length]} ${todo.is_completed ? 'opacity-40 line-through' : ''}`;
-        li.onclick = () => openModal(todo.id);
+        li.onclick = () => window.openModal(todo.id);
         li.innerHTML = `
-            <div onclick="event.stopPropagation(); fastToggleTodo('${todo.id}', ${todo.is_completed})" class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/90 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 active:scale-90 transition-all">${todo.is_completed ? '✓' : ''}</div>
+            <div onclick="event.stopPropagation(); window.fastToggleTodo('${todo.id}', ${todo.is_completed})" class="w-5 h-5 rounded-full border-2 border-purple-950/20 bg-white/90 flex items-center justify-center font-bold text-[10px] text-purple-700 select-none shrink-0 mt-0.5 hover:bg-purple-100 active:scale-90 transition-all">${todo.is_completed ? '✓' : ''}</div>
             <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2">
                     <div class="text-sm font-bold tracking-tight text-gray-800 lowercase break-words leading-snug">${todo.title}</div>
-                    <button onclick="event.stopPropagation(); deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-500 font-bold -mt-3 -mr-3 p-3.5 cursor-pointer shrink-0 transition-colors">✕</button>
+                    <button onclick="event.stopPropagation(); window.deleteTodo('${todo.id}')" class="text-gray-400 hover:text-rose-500 font-bold -mt-3 -mr-3 p-3.5 cursor-pointer shrink-0 transition-colors">✕</button>
                 </div>
                 <div class="flex items-center justify-between mt-2 text-[10px] font-bold tracking-wider text-purple-950/50 uppercase leading-none">
                     <span class="opacity-80">${parts[1] ? '🕒 ' + format12Hour(parts[1]) : '📅 full day'}</span>
@@ -168,11 +168,33 @@ function renderCalendarGrid() {
             const bg = totalExp <= 20 ? '#ffeff2' : totalExp <= 50 ? '#ffd6e0' : '#fbcbf5';
             dayBox.style = `background-color: ${bg}; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);`;
         }
-        dayBox.onclick = () => showDaySchedulePopup(dStr, dayTasks);
+        dayBox.onclick = () => window.showDaySchedulePopup(dStr, dayTasks);
         dayBox.innerHTML = `<span class="text-xs ${isToday ? 'text-purple-700 font-extrabold bg-purple-50 px-2 py-0.5 rounded-lg' : 'text-gray-500'}">${day}</span>`;
         grid.appendChild(dayBox);
     }
 }
+
+// --- MOBILE NAVIGATION SWITCHER ---
+window.switchMobileTab = function(tabName) {
+    const calendar = $('mobile-sec-calendar');
+    const timeline = $('mobile-sec-timeline');
+    const expenses = $('mobile-sec-expenses');
+
+    const btnTimeline = $('tab-btn-timeline');
+    const btnCalendar = $('tab-btn-calendar');
+    const btnExpenses = $('tab-btn-expenses');
+
+    const activeClass = "flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all pastel-purple-1 text-purple-800 shadow-2xs";
+    const inactiveClass = "flex-1 text-center py-2 text-xs font-bold rounded-xl transition-all text-gray-400 hover:text-gray-600";
+
+    if (btnTimeline) btnTimeline.className = tabName === 'timeline' ? activeClass : inactiveClass;
+    if (btnCalendar) btnCalendar.className = tabName === 'calendar' ? activeClass : inactiveClass;
+    if (btnExpenses) btnExpenses.className = tabName === 'expenses' ? activeClass : inactiveClass;
+
+    if (calendar) calendar.classList.toggle('hidden', tabName !== 'calendar');
+    if (timeline) timeline.classList.toggle('hidden', tabName !== 'timeline');
+    if (expenses) expenses.classList.toggle('hidden', tabName !== 'expenses');
+};
 
 // --- EXPENSES & FULLSCREEN TOGGLE ---
 window.toggleLedgerFullscreen = function() {
@@ -256,7 +278,7 @@ async function executeInsertExpense(payload) {
     fetchAllData();
 }
 
-window.forceInsertDuplicate = () => { if (pendingDuplicatePayload) executeInsertExpense(pendingDuplicatePayload); dismissDuplicate(); };
+window.forceInsertDuplicate = () => { if (pendingDuplicatePayload) executeInsertExpense(pendingDuplicatePayload); window.dismissDuplicate(); };
 window.dismissDuplicate = () => { pendingDuplicatePayload = null; $('duplicate-toast')?.classList.add('hidden'); };
 
 function renderExpenses() {
@@ -306,14 +328,14 @@ function renderExpenses() {
         active.forEach(exp => {
             const meta = CATEGORY_MAP[exp.category] || { emoji: '💰', color: 'bg-gray-200' };
             const [y, m, d] = exp.date.split('-');
-            tableHtml += `<tr onclick="openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
+            tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
                 <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
                 <td class="p-3.5"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl ${meta.color} bg-opacity-70 text-[11px] font-bold shadow-4xs">${meta.emoji} ${exp.category}</span></td>
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
                 <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                     <div class="flex items-center justify-end gap-2">
                         <span>-$${parseFloat(exp.amount).toFixed(2)}</span>
-                        <button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                        <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
                     </div>
                 </td>
             </tr>`;
@@ -328,19 +350,19 @@ function renderExpenses() {
             const [y, m, d] = exp.date.split('-');
             const li = document.createElement('li');
             li.className = "flex items-center justify-between p-3 bg-gray-50/50 rounded-2xl border border-gray-100/70 lowercase shadow-3xs cursor-pointer hover:bg-white transition-all";
-            li.onclick = () => openExpenseModal(exp.id);
+            li.onclick = () => window.openExpenseModal(exp.id);
             li.innerHTML = `
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm ${meta.color}">${meta.emoji}</div>
                     <div class="min-w-0"><div class="font-bold text-gray-700 truncate">${exp.description}</div><div class="text-[10px] text-gray-400">${d}/${m}/${y}</div></div>
                 </div>
-                <div class="flex items-center gap-1"><span class="font-extrabold text-gray-700">-$${parseFloat(exp.amount).toFixed(2)}</span><button onclick="event.stopPropagation();deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-2">✕</button></div>`;
+                <div class="flex items-center gap-1"><span class="font-extrabold text-gray-700">-$${parseFloat(exp.amount).toFixed(2)}</span><button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-2">✕</button></div>`;
             list.appendChild(li);
         });
     }
 }
 
-// --- MODAL HANDLERS ---
+// --- MODAL HANDLERS & EXPORTS ---
 window.deleteExpense = async id => { if (confirm("delete expense?")) { await supabaseClient.from('expenses').delete().eq('id', id); fetchAllData(); } };
 
 window.openModal = id => {
@@ -349,6 +371,11 @@ window.openModal = id => {
     if ($('modal-task-id')) $('modal-task-id').value = todo.id;
     if ($('modal-task-title')) $('modal-task-title').value = todo.title;
     if ($('modal-task-notes')) $('modal-task-notes').value = todo.notes || '';
+    
+    const prog = todo.progress || (todo.is_completed ? 100 : 0);
+    if ($('modal-task-progress')) $('modal-task-progress').value = prog;
+    if ($('modal-slider-value')) $('modal-slider-value').textContent = prog + '%';
+
     const [d, t] = todo.due_date ? todo.due_date.split(' ') : ['', ''];
     if ($('modal-task-date')) $('modal-task-date').value = d;
     if ($('modal-task-time')) $('modal-task-time').value = t;
@@ -356,6 +383,10 @@ window.openModal = id => {
 };
 
 window.closeModal = () => $('task-modal')?.classList.add('hidden');
+
+window.handleModalOutsideClick = e => {
+    if (e.target.id === 'task-modal') window.closeModal();
+};
 
 window.saveModalChanges = async function() {
     const id = $('modal-task-id')?.value;
@@ -375,7 +406,7 @@ window.saveModalChanges = async function() {
         is_completed: (prog === 100) 
     }).eq('id', id);
     
-    closeModal();
+    window.closeModal();
     fetchAllData();
 };
 
@@ -392,7 +423,7 @@ window.saveExpenseModalChanges = async () => {
     const [id, date, amount, description, category] = ['id', 'date', 'amount', 'description', 'category'].map(k => $(`modal-expense-${k}`)?.value);
     if (!date || isNaN(parseFloat(amount)) || !description) return alert('all fields required.');
     await supabaseClient.from('expenses').update({ date, amount: parseFloat(amount), description: description.toLowerCase(), category }).eq('id', id);
-    closeExpenseModal(); fetchAllData();
+    window.closeExpenseModal(); fetchAllData();
 };
 
 window.showDaySchedulePopup = (dateStr, dayTasks) => {
@@ -405,7 +436,7 @@ window.showDaySchedulePopup = (dateStr, dayTasks) => {
         const timeParts = t.due_date ? t.due_date.split(' ') : [];
         content.appendChild(Object.assign(document.createElement('div'), {
             className: "p-3.5 rounded-2xl border border-gray-100 bg-gray-50/50 flex items-center justify-between cursor-pointer",
-            onclick: () => { closeDaySchedulePopup(); openModal(t.id); },
+            onclick: () => { window.closeDaySchedulePopup(); window.openModal(t.id); },
             innerHTML: `<div class="text-xs font-bold text-gray-700 ${t.is_completed ? 'line-through text-gray-400' : ''}">${t.title}</div><div class="text-[10px] text-purple-950/40">🕒 ${timeParts[1] ? format12Hour(timeParts[1]) : 'full day'}</div>`
         }));
     });
@@ -435,5 +466,8 @@ $('todo-form')?.addEventListener('submit', async (e) => {
 
 window.deleteTodo = async id => { if (confirm("delete task?")) { await supabaseClient.from('todos').delete().eq('id', id); fetchAllData(); } };
 
-document.addEventListener('DOMContentLoaded', () => $('auth-form')?.addEventListener('submit', handleLogin));
+document.addEventListener('DOMContentLoaded', () => {
+    $('auth-form')?.addEventListener('submit', window.handleLogin);
+});
+
 checkSession();
