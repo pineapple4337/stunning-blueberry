@@ -220,15 +220,15 @@ function renderExpenses() {
     
     // Build initial category map
     const activeCatMap = CATEGORY_MAP || {
-        'food & drink': { emoji: '🍔', barColor: 'bg-rose-300' },
-        'shopping': { emoji: '🛍️', barColor: 'bg-pink-300' },
-        'subscriptions': { emoji: '📺', barColor: 'bg-purple-300' },
-        'events': { emoji: '🎟️', barColor: 'bg-indigo-300' },
-        'fees': { emoji: '💵', barColor: 'bg-blue-300' },
-        'health': { emoji: '💊', barColor: 'bg-teal-300' },
-        'transport': { emoji: '🚌', barColor: 'bg-emerald-300' },
-        'utilities': { emoji: '⚡', barColor: 'bg-amber-300' },
-        'other': { emoji: '📦', barColor: 'bg-gray-300' }
+        'food & drink': { emoji: '🍔', barColor: 'bg-rose-300', badgeColor: 'bg-rose-100 text-rose-800' },
+        'shopping': { emoji: '🛍️', barColor: 'bg-pink-300', badgeColor: 'bg-amber-100 text-amber-800' },
+        'subscriptions': { emoji: '📺', barColor: 'bg-purple-300', badgeColor: 'bg-purple-100 text-purple-800' },
+        'events': { emoji: '🎟️', barColor: 'bg-indigo-300', badgeColor: 'bg-indigo-100 text-indigo-800' },
+        'fees': { emoji: '💵', barColor: 'bg-blue-300', badgeColor: 'bg-blue-100 text-blue-800' },
+        'health': { emoji: '💊', barColor: 'bg-teal-300', badgeColor: 'bg-teal-100 text-teal-800' },
+        'transport': { emoji: '🚌', barColor: 'bg-emerald-300', badgeColor: 'bg-emerald-100 text-emerald-800' },
+        'utilities': { emoji: '⚡', barColor: 'bg-amber-300', badgeColor: 'bg-sky-100 text-sky-800' },
+        'other': { emoji: '📦', barColor: 'bg-gray-300', badgeColor: 'bg-gray-100 text-gray-800' }
     };
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
@@ -321,13 +321,16 @@ function renderExpandedLedger() {
         tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found for this month</td></tr>`;
     } else {
         active.forEach(exp => {
-            const meta = (CATEGORY_MAP && CATEGORY_MAP[exp.category]) || { emoji: '💰', color: 'bg-gray-100' };
+            const catKey = (exp.category || 'other').toLowerCase();
+            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800' };
+            const badgeClass = meta.badgeColor || 'bg-gray-100 text-gray-800';
+
             const dateParts = exp.date ? exp.date.split('-') : ['2026', '01', '01'];
             const [y, m, d] = dateParts.length === 3 ? dateParts : ['2026', '01', '01'];
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
                 <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
-                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${meta.color || 'bg-gray-100'} text-[11px] font-bold">${meta.emoji || '📦'} ${exp.category}</span></td>
+                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${badgeClass} text-[11px] font-bold">${meta.emoji || '📦'} ${exp.category}</span></td>
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
                 <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
                     <div class="flex items-center justify-end gap-2">
