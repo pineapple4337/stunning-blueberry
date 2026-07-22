@@ -51,83 +51,6 @@ async function fetchExpensesFromSupabase() {
     }
 }
 
-// --- ROBUST PIPE PARSER ---
-function parsePipedResponses(rawText) {
-    if (!rawText || typeof rawText !== 'string') return [];
-
-    const lines = rawText.split('\n');
-    const entries = [];
-
-    // Fallback valid categories list
-    const validCategories = Object.keys(CATEGORY_MAP || {}).length > 0 
-        ? Object.keys(CATEGORY_MAP) 
-        : ['food & drink', 'shopping', 'subscriptions', 'events', 'fees', 'health', 'transport', 'utilities', 'other'];
-
-    lines.forEach(line => {
-        const trimmed = line.trim();
-        // Skip empty lines, markdown dividers, or code blocks
-        if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-') || trimmed.startsWith('```')) return;
-
-        // Split by pipe and clean whitespace
-        const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
-        if (parts.length < 3) return;
-
-        // Skip header lines if present
-        const col0Lower = parts[0].toLowerCase();
-        if (col0Lower === 'date' || parts[1].toLowerCase() === 'category' || parts[1].toLowerCase() === 'amount') return;
-
-        let rawDate = parts[0];
-        let category = 'other';
-        let amountStr = '0';
-        let description = 'expense';
-
-        // Check if Col 2 is numeric: 2026-07-14 | 5.00 | food & drink | taste mixed veg rice
-        const col1AsNum = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
-        if (!isNaN(col1AsNum) && parts.length >= 4) {
-            amountStr = parts[1];
-            category = parts[2];
-            description = parts.slice(3).join(' ');
-        } else {
-            // Format: Date | Category | Amount | Description
-            category = parts[1];
-            amountStr = parts[2];
-            description = parts.slice(3).join(' ');
-        }
-
-        // Handle Date formatting (convert DD/MM/YYYY to YYYY-MM-DD if necessary)
-        let date = rawDate;
-        if (rawDate.includes('/')) {
-            const dateParts = rawDate.split('/');
-            if (dateParts.length === 3) {
-                const [d, m, y] = dateParts;
-                date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            }
-        }
-
-        const amount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
-        let cleanCategory = (category || 'other').toLowerCase().trim();
-
-        // Categorize match or fallback
-        if (!validCategories.includes(cleanCategory)) {
-            if (cleanCategory.includes('food') || cleanCategory.includes('drink')) cleanCategory = 'food & drink';
-            else if (cleanCategory.includes('shop')) cleanCategory = 'shopping';
-            else if (cleanCategory.includes('trans') || cleanCategory.includes('bus') || cleanCategory.includes('mrt')) cleanCategory = 'transport';
-            else cleanCategory = 'other';
-        }
-
-        if (amount > 0 && date) {
-            entries.push({
-                date,
-                category: cleanCategory,
-                amount,
-                description: (description || 'expense').toLowerCase().trim()
-            });
-        }
-    });
-
-    return entries;
-}
-
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
     // Single Form Submit (Add Entry)
@@ -160,41 +83,64 @@ function setupEventListeners() {
         }
     });
 
-    // BULK PIPE IMPORT LISTENER
-    const importBtn = $('import-piped-btn') || $('bulk-import-btn') || $('pipe-import-btn');
-    importBtn?.addEventListener('click', async () => {
-        const textInput = $('piped-text-input') || $('bulk-text-input') || $('piped-input') || $('expense-piped-input');
-        const text = textInput?.value?.trim();
+    // BULK JSON IMPORT LISTENER
+    $('import-json-btn')?.addEventListener('click', async () => {
+        let rawText = $('json-text-input')?.value?.trim();
 
-        if (!text) {
+        if (!rawText) {
             alert('please paste text into the box first!');
             return;
         }
 
-        const parsedEntries = parsePipedResponses(text);
-
-        if (parsedEntries.length === 0) {
-            alert('no valid entries parsed. check your text format!');
-            return;
+        // Strip markdown code block wrappers if Gemini wraps response in ```json ... ```
+        if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
         }
 
         try {
-            // Single Batch Supabase Request
+            // Native 1-line JS parse
+            const parsed = JSON.parse(rawText);
+
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                alert('json must be a non-empty list/array of items.');
+                return;
+            }
+
+            // Clean & format fields
+            const formattedEntries = parsed.map(item => {
+                let date = item.date;
+
+                // Convert DD/MM/YYYY to YYYY-MM-DD if necessary
+                if (date && date.includes('/')) {
+                    const [d, m, y] = date.split('/');
+                    date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+
+                return {
+                    date: date,
+                    category: (item.category || 'other').toLowerCase().trim(),
+                    amount: parseFloat(item.amount) || 0,
+                    description: (item.description || 'expense').toLowerCase().trim()
+                };
+            });
+
+            // Single batch insert into Supabase
             const { data, error } = await supabase
                 .from('expenses')
-                .insert(parsedEntries)
+                .insert(formattedEntries)
                 .select();
 
             if (error) throw error;
 
-            alert(`successfully imported ${parsedEntries.length} entries!`);
+            alert(`successfully imported ${formattedEntries.length} entries!`);
+            $('json-text-input').value = '';
             
-            if (textInput) textInput.value = '';
+            // Refresh UI
             await fetchExpensesFromSupabase();
 
         } catch (err) {
-            console.error("Supabase bulk insert failed:", err.message);
-            alert(`import failed: ${err.message}`);
+            console.error("JSON import error:", err);
+            alert(`could not parse json. make sure gemini's output matches the raw json array format.\n\nError: ${err.message}`);
         }
     });
 
@@ -250,7 +196,6 @@ function setupEventListeners() {
     });
 
     // Edit Modal Toggles
-    $('close-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
     $('cancel-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
 
     // Escape Key Listener
