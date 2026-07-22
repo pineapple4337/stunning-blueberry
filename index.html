@@ -23,7 +23,6 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <!-- Task List Page Button -->
                 <a href="tasks.html" class="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-2xl transition-all lowercase">
                     task list 📝
                 </a>
@@ -40,15 +39,31 @@
         <!-- DASHBOARD GRID -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- LEFT / TOP: ADD EXPENSE & STATS -->
+            <!-- LEFT COLUMN: ADD EXPENSE & PIPED PASTE -->
             <div class="space-y-6">
-                <!-- Add Expense Card -->
+                <!-- Single Entry / Piped Input Card -->
                 <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100 space-y-4">
-                    <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">add transaction</h2>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-black text-gray-800 lowercase tracking-wider">add transaction</h2>
+                        <button id="toggle-pipe-btn" type="button" class="text-[10px] font-bold text-purple-600 hover:underline lowercase">
+                            + bulk pipe paste
+                        </button>
+                    </div>
+
+                    <!-- Piped Response Input Area (Collapsible) -->
+                    <div id="piped-input-container" class="hidden space-y-2 bg-purple-50/50 p-3 rounded-2xl border border-purple-100">
+                        <label class="block text-[10px] font-bold text-purple-700 lowercase">paste piped responses / markdown table</label>
+                        <textarea id="piped-text-input" rows="4" placeholder="| date | category | amount | description |&#10;| 21/07/2026 | food & drink | 16.65 | lunch |" class="w-full p-2.5 text-xs bg-white rounded-xl border border-purple-200 focus:outline-none focus:border-purple-500 font-mono text-gray-700 leading-relaxed"></textarea>
+                        <button id="import-piped-btn" type="button" class="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer lowercase">
+                            import piped entries
+                        </button>
+                    </div>
+
+                    <!-- Single Entry Form -->
                     <form id="expense-form" class="space-y-3">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-400 lowercase mb-1">description</label>
-                            <input type="text" id="expense-desc" required placeholder="e.g. coffee / books" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
+                            <input type="text" id="expense-desc" required placeholder="e.g. lunch / uniqlo" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-3">
@@ -67,11 +82,15 @@
                             <select id="expense-category" class="w-full px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
                                 <option value="food & drink">food & drink</option>
                                 <option value="shopping">shopping</option>
+                                <option value="clothing">clothing</option>
+                                <option value="transport">transport</option>
+                                <option value="travel">travel</option>
                                 <option value="subscriptions">subscriptions</option>
+                                <option value="mobile">mobile</option>
                                 <option value="events">events</option>
                                 <option value="fees">fees</option>
+                                <option value="education">education</option>
                                 <option value="health">health</option>
-                                <option value="transport">transport</option>
                                 <option value="utilities">utilities</option>
                                 <option value="other">other</option>
                             </select>
@@ -92,56 +111,25 @@
                 </div>
             </div>
 
-            <!-- RIGHT / MAIN: CENTRALISED EXPAND BUTTON CARD -->
-            <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-xs border border-gray-100 flex flex-col items-center justify-center text-center space-y-4 min-h-[350px]">
-                <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl shadow-3xs">
-                    📊
-                </div>
-                <div>
-                    <h2 class="text-lg font-black text-gray-800 lowercase tracking-tight">transaction ledger</h2>
-                    <p class="text-xs text-gray-400 font-medium lowercase max-w-xs mt-1">open the expanded full-screen table to view, edit, or manage all entries for this month.</p>
-                </div>
-                <button id="open-ledger-btn" class="px-6 py-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition-all cursor-pointer lowercase tracking-wide flex items-center gap-2">
-                    <span>open full transaction ledger</span> ⤢
-                </button>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- FULLSCREEN EXPANDED EXPENSE LEDGER MODAL -->
-    <div id="expanded-ledger-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-8">
-        <div class="bg-white rounded-3xl w-full max-w-6xl h-full max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col overflow-hidden" onclick="event.stopPropagation()">
-            
-            <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                <div class="flex items-center gap-3">
-                    <h3 class="text-lg font-black text-gray-800 tracking-tight lowercase">transaction ledger 💰</h3>
-                    <span id="expanded-month-label" class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 lowercase"></span>
-                </div>
-                <button id="close-ledger-btn" class="px-4 py-2 text-xs font-bold bg-white hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer text-gray-600 transition-all active:scale-95">
-                    close view ✕
-                </button>
-            </div>
-
-            <!-- Content Area -->
-            <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-                <!-- Left Side: Summary Stats -->
-                <div class="w-full md:w-72 bg-gray-50/60 p-6 border-r border-gray-100 shrink-0 overflow-y-auto no-scrollbar">
-                    <div class="text-[10px] font-bold text-gray-400 tracking-wider lowercase mb-4">monthly breakdown</div>
-                    <div id="expanded-visual-stats" class="space-y-4"></div>
+            <!-- RIGHT COLUMN: EMBEDDED INLINE TRANSACTION LEDGER -->
+            <div class="lg:col-span-2 bg-white rounded-3xl shadow-xs border border-gray-100 flex flex-col overflow-hidden min-h-[500px]">
+                <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-black text-gray-800 lowercase tracking-tight">transaction ledger 💰</h2>
+                        <p class="text-xs text-gray-400 font-medium lowercase">all transactions for selected month</p>
+                    </div>
+                    <span id="ledger-month-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 lowercase"></span>
                 </div>
 
-                <!-- Right Side: Scrollable Table -->
-                <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar p-6 bg-white" id="expanded-table-container">
-                    <!-- Dynamic Table -->
+                <div class="flex-1 overflow-x-auto overflow-y-auto no-scrollbar" id="inline-ledger-container">
+                    <!-- Inline Rendered Table -->
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- EDIT / VIEW TRANSACTION MODAL -->
+    <!-- EDIT TRANSACTION MODAL -->
     <div id="edit-expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center border-b border-gray-100 pb-3">
@@ -169,11 +157,15 @@
                     <select id="edit-expense-category" class="w-full px-4 py-2 text-xs bg-gray-50 rounded-xl border border-gray-200 font-medium lowercase">
                         <option value="food & drink">food & drink</option>
                         <option value="shopping">shopping</option>
+                        <option value="clothing">clothing</option>
+                        <option value="transport">transport</option>
+                        <option value="travel">travel</option>
                         <option value="subscriptions">subscriptions</option>
+                        <option value="mobile">mobile</option>
                         <option value="events">events</option>
                         <option value="fees">fees</option>
+                        <option value="education">education</option>
                         <option value="health">health</option>
-                        <option value="transport">transport</option>
                         <option value="utilities">utilities</option>
                         <option value="other">other</option>
                     </select>
