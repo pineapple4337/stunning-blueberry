@@ -88,6 +88,30 @@ function setupEventListeners() {
         renderExpenses();
     });
 
+    // Transaction Ledger Modal Toggle
+    $('open-ledger-btn')?.addEventListener('click', () => {
+        toggleLedgerFullscreen();
+    });
+
+    $('close-ledger-btn')?.addEventListener('click', () => {
+        toggleLedgerFullscreen();
+    });
+
+    $('expanded-ledger-modal')?.addEventListener('click', (e) => {
+        if (e.target === $('expanded-ledger-modal')) {
+            toggleLedgerFullscreen();
+        }
+    });
+
+    // Edit Transaction Modal Close Buttons
+    $('close-edit-modal-btn')?.addEventListener('click', () => {
+        closeExpenseModal();
+    });
+
+    $('cancel-edit-modal-btn')?.addEventListener('click', () => {
+        closeExpenseModal();
+    });
+    
     // Escape Key Modal Listener
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -174,7 +198,7 @@ function renderExpenses() {
 }
 
 // --- FULLSCREEN EXPANDED LEDGER MODAL LOGIC ---
-window.toggleLedgerFullscreen = function() {
+function toggleLedgerFullscreen() {
     const modal = $('expanded-ledger-modal');
     if (!modal) return;
 
@@ -185,7 +209,10 @@ window.toggleLedgerFullscreen = function() {
     } else {
         modal.classList.add('hidden');
     }
-};
+}
+
+// Attach to window so inline onclicks can find it if needed
+window.toggleLedgerFullscreen = toggleLedgerFullscreen;
 
 function renderExpandedLedger() {
     const tableContainer = $('expanded-table-container');
