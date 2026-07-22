@@ -1,3 +1,8 @@
+import { APP_CONFIG, CATEGORY_MAP } from './config.js';
+
+// Initialize Supabase Client
+const supabase = window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+
 // --- DOM HELPER ---
 const $ = (id) => document.getElementById(id);
 
@@ -5,23 +10,11 @@ const $ = (id) => document.getElementById(id);
 let globalExpensesCache = [];
 let displayDate = new Date();
 
-// --- COHESIVE PASTEL PALETTE CATEGORY MAP ---
-const CATEGORY_MAP = {
-    'food & drink': { emoji: '🍔', badgeColor: 'bg-rose-100 text-rose-800', barColor: 'bg-rose-300' },
-    'shopping': { emoji: '🛍️', badgeColor: 'bg-pink-100 text-pink-800', barColor: 'bg-pink-300' },
-    'subscriptions': { emoji: '📺', badgeColor: 'bg-purple-100 text-purple-800', barColor: 'bg-purple-300' },
-    'events': { emoji: '🎟️', badgeColor: 'bg-indigo-100 text-indigo-800', barColor: 'bg-indigo-300' },
-    'fees': { emoji: '💵', badgeColor: 'bg-blue-100 text-blue-800', barColor: 'bg-blue-300' },
-    'health': { emoji: '💊', badgeColor: 'bg-teal-100 text-teal-800', barColor: 'bg-teal-300' },
-    'transport': { emoji: '🚌', badgeColor: 'bg-emerald-100 text-emerald-800', barColor: 'bg-emerald-300' },
-    'other': { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800', barColor: 'bg-gray-300' }
-};
-
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     initDefaultDate();
     setupEventListeners();
-    loadExpenses();
+    fetchExpensesFromSupabase();
 });
 
 function initDefaultDate() {
@@ -37,41 +30,70 @@ function updateMonthDisplay() {
     }
 }
 
+// --- SUPABASE API CALLS ---
+async function fetchExpensesFromSupabase() {
+    try {
+        const { data, error } = await supabase
+            .from('expenses')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        globalExpensesCache = data || [];
+        renderExpenses();
+    } catch (err) {
+        console.error("error fetching expenses from supabase:", err.message);
+    }
+}
+
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
-    // Form Submit
-    $('expense-form')?.addEventListener('submit', (e) => {
+    // Add Form Submit
+    $('expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const newExpense = {
-            id: Date.now().toString(),
-            description: $('expense-desc').value.toLowerCase(),
-            amount: parseFloat($('expense-amount').value),
-            date: $('expense-date').value,
-            category: $('expense-category').value
-        };
-        globalExpensesCache.unshift(newExpense);
-        saveExpenses();
-        renderExpenses();
-        $('expense-form').reset();
-        initDefaultDate();
+        const description = $('expense-desc').value.trim().toLowerCase();
+        const amount = parseFloat($('expense-amount').value);
+        const date = $('expense-date').value;
+        const category = $('expense-category').value;
+
+        try {
+            const { data, error } = await supabase
+                .from('expenses')
+                .insert([{ description, amount, date, category }])
+                .select();
+
+            if (error) throw error;
+
+            $('expense-form').reset();
+            initDefaultDate();
+            await fetchExpensesFromSupabase();
+        } catch (err) {
+            console.error('failed to add expense:', err.message);
+        }
     });
 
     // Edit Form Submit
-    $('edit-expense-form')?.addEventListener('submit', (e) => {
+    $('edit-expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = $('edit-expense-id').value;
-        const index = globalExpensesCache.findIndex(e => e.id === id);
-        if (index !== -1) {
-            globalExpensesCache[index] = {
-                id,
-                description: $('edit-expense-desc').value.toLowerCase(),
-                amount: parseFloat($('edit-expense-amount').value),
-                date: $('edit-expense-date').value,
-                category: $('edit-expense-category').value
-            };
-            saveExpenses();
-            renderExpenses();
+        const description = $('edit-expense-desc').value.trim().toLowerCase();
+        const amount = parseFloat($('edit-expense-amount').value);
+        const date = $('edit-expense-date').value;
+        const category = $('edit-expense-category').value;
+
+        try {
+            const { error } = await supabase
+                .from('expenses')
+                .update({ description, amount, date, category })
+                .eq('id', id);
+
+            if (error) throw error;
+
             closeExpenseModal();
+            await fetchExpensesFromSupabase();
+        } catch (err) {
+            console.error('failed to update expense:', err.message);
         }
     });
 
@@ -103,14 +125,9 @@ function setupEventListeners() {
         }
     });
 
-    // Edit Transaction Modal Close Buttons
-    $('close-edit-modal-btn')?.addEventListener('click', () => {
-        closeExpenseModal();
-    });
-
-    $('cancel-edit-modal-btn')?.addEventListener('click', () => {
-        closeExpenseModal();
-    });
+    // Edit Modal Close Buttons
+    $('close-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
+    $('cancel-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
     
     // Escape Key Modal Listener
     document.addEventListener('keydown', (e) => {
@@ -123,32 +140,7 @@ function setupEventListeners() {
     });
 }
 
-// --- PERSISTENCE ---
-function saveExpenses() {
-    localStorage.setItem('local_expenses_data', JSON.stringify(globalExpensesCache));
-}
-
-function loadExpenses() {
-    const raw = localStorage.getItem('local_expenses_data');
-    if (raw) {
-        try {
-            globalExpensesCache = JSON.parse(raw);
-        } catch (e) {
-            globalExpensesCache = [];
-        }
-    } else {
-        // Mock Sample Data
-        globalExpensesCache = [
-            { id: '1', description: 'muji notebook', amount: 8.50, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-02`, category: 'shopping' },
-            { id: '2', description: 'iced matcha latte', amount: 6.80, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-05`, category: 'food & drink' },
-            { id: '3', description: 'mrt transport', amount: 3.20, date: `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-08`, category: 'transport' }
-        ];
-        saveExpenses();
-    }
-    renderExpenses();
-}
-
-// --- RENDER MONTHLY BREAKDOWN (ALL CATEGORIES WITH EXPENSES) ---
+// --- RENDER MONTHLY BREAKDOWN ---
 function renderExpenses() {
     const stats = $('expense-visual-stats');
     if (!stats) return;
@@ -168,9 +160,8 @@ function renderExpenses() {
 
     let hasEntries = false;
 
-    // Render progress bars for ALL categories with expenses
     Object.entries(totals).forEach(([cat, sum]) => {
-        if (!sum) return; // Skip categories with $0.00
+        if (!sum) return;
         hasEntries = true;
         const pct = totalAll ? (sum / totalAll) * 100 : 0;
         const meta = CATEGORY_MAP[cat] || { emoji: '📦', barColor: 'bg-gray-300' };
@@ -191,7 +182,6 @@ function renderExpenses() {
         stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
     }
 
-    // Sync expanded ledger modal if open
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
         renderExpandedLedger();
     }
@@ -210,8 +200,6 @@ function toggleLedgerFullscreen() {
         modal.classList.add('hidden');
     }
 }
-
-// Attach to window so inline onclicks can find it if needed
 window.toggleLedgerFullscreen = toggleLedgerFullscreen;
 
 function renderExpandedLedger() {
@@ -226,10 +214,8 @@ function renderExpandedLedger() {
     const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
     const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
 
-    // Clone monthly stats into modal sidebar
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
-    // Render Table (dd/mm/yyyy date formatting)
     let tableHtml = `<table class="w-full text-left border-collapse text-xs lowercase relative">
         <thead>
             <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10">
@@ -265,15 +251,23 @@ function renderExpandedLedger() {
     tableContainer.innerHTML = tableHtml;
 }
 
-// --- ACTIONS & MODAL UTILS ---
-window.deleteExpense = function(id) {
-    globalExpensesCache = globalExpensesCache.filter(e => e.id !== id);
-    saveExpenses();
-    renderExpenses();
+// --- ACTIONS & MODALS ---
+window.deleteExpense = async function(id) {
+    try {
+        const { error } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        await fetchExpensesFromSupabase();
+    } catch (err) {
+        console.error('failed to delete expense:', err.message);
+    }
 };
 
 window.openExpenseModal = function(id) {
-    const exp = globalExpensesCache.find(e => e.id === id);
+    const exp = globalExpensesCache.find(e => e.id == id);
     if (!exp) return;
 
     $('edit-expense-id').value = exp.id;
@@ -282,7 +276,7 @@ window.openExpenseModal = function(id) {
     $('edit-expense-date').value = exp.date;
     $('edit-expense-category').value = exp.category;
 
-    $('edit-expense-modal').classList.remove('hidden');
+    $('edit-expense-modal')?.classList.remove('hidden');
 };
 
 window.closeExpenseModal = function() {
