@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>task list</title>
+    <!-- Tailwind CSS V4 -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans antialiased p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto space-y-6">
+        
+        <!-- Navigation / Header -->
+        <header class="flex items-center justify-between bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-gray-900 lowercase">task list 📝</h1>
+                <p class="text-xs text-gray-400 font-medium lowercase">manage your pending tasks</p>
+            </div>
+            <a href="index.html" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all lowercase">
+                ← back to tracker
+            </a>
+        </header>
+
+        <!-- Add Task Form -->
+        <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
+            <form id="task-form" class="flex gap-3">
+                <input type="text" id="task-input" required placeholder="add new task..." class="flex-1 px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
+                <button type="submit" class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
+                    add task
+                </button>
+            </form>
+        </div>
+
+        <!-- Task List Container -->
+        <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
+            <ul id="task-list" class="divide-y divide-gray-100">
+                <li class="py-4 text-center text-xs text-gray-400 lowercase">loading tasks...</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- ES Module Script Import -->
+    <script type="module" src="tasks.js"></script>
+</body>
+</html>
