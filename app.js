@@ -247,6 +247,11 @@ function renderExpenses() {
         }
     });
 
+    // Update monthly total pill
+    if ($('month-total-pill')) {
+        $('month-total-pill').textContent = `$${totalAll.toFixed(2)}`;
+    }
+
     let hasEntries = false;
 
     // Render category stats
@@ -296,6 +301,7 @@ function renderExpandedLedger() {
     const tableContainer = $('expanded-table-container');
     const statsContainer = $('expanded-visual-stats');
     const monthLabel = $('expanded-month-label');
+    const expandedTotal = $('expanded-month-total');
     if (!tableContainer || !statsContainer) return;
 
     const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -303,6 +309,12 @@ function renderExpandedLedger() {
 
     const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
     const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
+
+    // Calculate month total for expanded header
+    const totalAll = active.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    if (expandedTotal) {
+        expandedTotal.textContent = `$${totalAll.toFixed(2)}`;
+    }
 
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
