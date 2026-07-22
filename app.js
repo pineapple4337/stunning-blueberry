@@ -139,29 +139,42 @@ function setupEventListeners() {
     $('cancel-edit-modal-btn')?.addEventListener('click', closeExpenseModal);
 }
 
-// --- PIPED RESPONSES PARSER ---
 function parsePipedResponses(rawText) {
     const lines = rawText.split('\n');
     const entries = [];
 
     lines.forEach(line => {
         const trimmed = line.trim();
+        // Skip empty lines or markdown table divider lines
         if (!trimmed || trimmed.startsWith('| :---') || trimmed.startsWith('|-')) return;
 
+        // Split by pipe and trim each part
         const parts = trimmed.split('|').map(p => p.trim()).filter(p => p !== '');
         if (parts.length < 3) return;
 
         // Skip headers if present
-        if (parts[0].toLowerCase() === 'date' || parts[1].toLowerCase() === 'category') return;
+        const col0Lower = parts[0].toLowerCase();
+        if (col0Lower === 'date' || parts[1].toLowerCase() === 'category' || parts[1].toLowerCase() === 'amount') return;
 
-        let [rawDate, category, amountStr, description] = parts;
-        if (!description && parts.length === 3) {
-            // Alternate ordering fallback
-            description = category;
-            category = 'other';
+        let rawDate = parts[0];
+        let category = 'other';
+        let amountStr = '0';
+        let description = 'expense';
+
+        // Check if Column 2 is a numeric amount (Bot format: Date | Amount | Category | Description)
+        const col1AsNum = parseFloat(parts[1].replace(/[^0-9.]/g, ''));
+        if (!isNaN(col1AsNum) && parts.length >= 4) {
+            amountStr = parts[1];
+            category = parts[2];
+            description = parts.slice(3).join(' '); // Handles descriptions with additional pipes
+        } else {
+            // Standard format: Date | Category | Amount | Description
+            category = parts[1];
+            amountStr = parts[2];
+            description = parts.slice(3).join(' ');
         }
 
-        // Convert dd/mm/yyyy -> yyyy-mm-dd for Supabase
+        // Format date to standard YYYY-MM-DD for Supabase
         let date = rawDate;
         if (rawDate.includes('/')) {
             const dateParts = rawDate.split('/');
@@ -171,10 +184,10 @@ function parsePipedResponses(rawText) {
             }
         }
 
-        const amount = parseFloat(amountStr?.replace(/[^0-9.]/g, '')) || 0;
+        const amount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
         let cleanCategory = (category || 'other').toLowerCase();
 
-        // Standardize category if mapped
+        // Ensure category matches known list or fallback to 'other'
         if (!CATEGORY_MAP[cleanCategory]) {
             cleanCategory = 'other';
         }
