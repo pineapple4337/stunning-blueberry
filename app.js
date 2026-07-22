@@ -87,10 +87,12 @@ async function checkSession() {
     }
 }
 
+const DEFAULT_AUTH_EMAIL = 'ateghddw@gmail.com'; // <--- Replace with your Supabase account email
+
 window.handleLogin = async function(e) {
     e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
+    const passcodeEl = document.getElementById('auth-passcode');
+    const passcode = passcodeEl ? passcodeEl.value : '';
     const errorEl = document.getElementById('auth-error');
     const submitBtn = document.getElementById('auth-submit-btn');
 
@@ -99,19 +101,20 @@ window.handleLogin = async function(e) {
 
     try {
         const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password,
+            email: DEFAULT_AUTH_EMAIL,
+            password: passcode,
         });
 
         if (error) {
             if (errorEl) {
-                errorEl.textContent = error.message.toLowerCase();
+                errorEl.textContent = 'incorrect passcode';
                 errorEl.classList.remove('hidden');
             }
-            if (submitBtn) submitBtn.innerText = 'unlock app 🔓';
+            if (submitBtn) submitBtn.innerText = 'login';
         } else {
             const authOverlay = document.getElementById('auth-overlay');
             if (authOverlay) authOverlay.classList.add('hidden');
+            if (passcodeEl) passcodeEl.value = '';
             fetchAllData();
             resetInactivityTimer();
         }
@@ -121,7 +124,7 @@ window.handleLogin = async function(e) {
             errorEl.textContent = "connection error during login.";
             errorEl.classList.remove('hidden');
         }
-        if (submitBtn) submitBtn.innerText = 'unlock app 🔓';
+        if (submitBtn) submitBtn.innerText = 'login';
     }
 };
 
