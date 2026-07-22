@@ -27,10 +27,13 @@
 
     <main class="max-w-xl mx-auto px-6 pt-6 space-y-6">
 
-        <!-- MONTH NAVIGATION -->
+        <!-- MONTH NAVIGATION WITH TOTAL -->
         <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-xs">
             <button id="prev-month-btn" class="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 font-bold text-sm transition-colors cursor-pointer">←</button>
-            <span id="current-month-display" class="text-sm font-extrabold text-gray-800 lowercase tracking-wide">july 2026</span>
+            <div class="flex items-center gap-2">
+                <span id="current-month-display" class="text-sm font-extrabold text-gray-800 lowercase tracking-wide">july 2026</span>
+                <span id="month-total-pill" class="text-xs font-bold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full font-mono">$0.00</span>
+            </div>
             <button id="next-month-btn" class="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 font-bold text-sm transition-colors cursor-pointer">→</button>
         </div>
 
@@ -93,7 +96,10 @@
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <div>
                     <h3 class="text-base font-extrabold text-gray-900 lowercase">transaction ledger</h3>
-                    <p id="expanded-month-label" class="text-xs font-bold text-gray-400 lowercase mt-0.5">july 2026</p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p id="expanded-month-label" class="text-xs font-bold text-gray-400 lowercase">july 2026</p>
+                        <span id="expanded-month-total" class="text-xs font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-mono">$0.00</span>
+                    </div>
                 </div>
                 <button id="close-ledger-btn" class="p-2 text-gray-400 hover:text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors cursor-pointer text-sm">✕</button>
             </div>
