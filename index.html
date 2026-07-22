@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker</title>
+    <title>expense tracker</title>
     <!-- Tailwind CSS V4 -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans antialiased">
@@ -20,11 +22,18 @@
                 <p class="text-xs text-gray-400 font-medium lowercase">monthly overview & transaction ledger</p>
             </div>
             
-            <!-- Month Selector -->
-            <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
-                <button id="prev-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">←</button>
-                <span id="current-month-display" class="text-xs font-bold px-3 text-gray-700 lowercase"></span>
-                <button id="next-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">→</button>
+            <div class="flex items-center gap-3">
+                <!-- Task List Page Button -->
+                <a href="tasks.html" class="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-2xl transition-all lowercase">
+                    task list 📝
+                </a>
+
+                <!-- Month Selector -->
+                <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                    <button id="prev-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">←</button>
+                    <span id="current-month-display" class="text-xs font-bold px-3 text-gray-700 lowercase"></span>
+                    <button id="next-month-btn" class="w-8 h-8 flex items-center justify-center bg-white rounded-xl shadow-2xs hover:bg-gray-100 transition-all cursor-pointer text-xs font-bold">→</button>
+                </div>
             </div>
         </header>
 
@@ -63,6 +72,7 @@
                                 <option value="fees">fees</option>
                                 <option value="health">health</option>
                                 <option value="transport">transport</option>
+                                <option value="utilities">utilities</option>
                                 <option value="other">other</option>
                             </select>
                         </div>
@@ -91,7 +101,7 @@
                     <h2 class="text-lg font-black text-gray-800 lowercase tracking-tight">transaction ledger</h2>
                     <p class="text-xs text-gray-400 font-medium lowercase max-w-xs mt-1">open the expanded full-screen table to view, edit, or manage all entries for this month.</p>
                 </div>
-                <button onclick="toggleLedgerFullscreen()" class="px-6 py-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition-all cursor-pointer lowercase tracking-wide flex items-center gap-2">
+                <button id="open-ledger-btn" class="px-6 py-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold rounded-2xl shadow-md hover:shadow-lg active:scale-95 transition-all cursor-pointer lowercase tracking-wide flex items-center gap-2">
                     <span>open full transaction ledger</span> ⤢
                 </button>
             </div>
@@ -100,7 +110,7 @@
     </div>
 
     <!-- FULLSCREEN EXPANDED EXPENSE LEDGER MODAL -->
-    <div id="expanded-ledger-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-8" onclick="toggleLedgerFullscreen()">
+    <div id="expanded-ledger-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4 lg:p-8">
         <div class="bg-white rounded-3xl w-full max-w-6xl h-full max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col overflow-hidden" onclick="event.stopPropagation()">
             
             <!-- Header -->
@@ -109,7 +119,7 @@
                     <h3 class="text-lg font-black text-gray-800 tracking-tight lowercase">transaction ledger 💰</h3>
                     <span id="expanded-month-label" class="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-700 lowercase"></span>
                 </div>
-                <button onclick="toggleLedgerFullscreen()" class="px-4 py-2 text-xs font-bold bg-white hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer text-gray-600 transition-all active:scale-95">
+                <button id="close-ledger-btn" class="px-4 py-2 text-xs font-bold bg-white hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer text-gray-600 transition-all active:scale-95">
                     close view ✕
                 </button>
             </div>
@@ -132,11 +142,11 @@
     </div>
 
     <!-- EDIT / VIEW TRANSACTION MODAL -->
-    <div id="edit-expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeExpenseModal()">
+    <div id="edit-expense-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center border-b border-gray-100 pb-3">
                 <h3 class="font-black text-sm lowercase">edit transaction</h3>
-                <button onclick="closeExpenseModal()" class="text-xs font-bold text-gray-400 hover:text-gray-600">✕</button>
+                <button id="close-edit-modal-btn" class="text-xs font-bold text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
             </div>
             <form id="edit-expense-form" class="space-y-3">
                 <input type="hidden" id="edit-expense-id">
@@ -164,18 +174,19 @@
                         <option value="fees">fees</option>
                         <option value="health">health</option>
                         <option value="transport">transport</option>
+                        <option value="utilities">utilities</option>
                         <option value="other">other</option>
                     </select>
                 </div>
                 <div class="flex gap-2 pt-2">
-                    <button type="button" onclick="closeExpenseModal()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl lowercase">cancel</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-xl lowercase">save changes</button>
+                    <button type="button" id="cancel-edit-modal-btn" class="flex-1 py-2.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-xl cursor-pointer lowercase">cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-xl cursor-pointer lowercase">save changes</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <!-- ES Module Script Import -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
