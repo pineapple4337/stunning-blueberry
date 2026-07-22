@@ -29,6 +29,44 @@ function updateMonthDisplay() {
     }
 }
 
+// --- DATE HELPER TO PARSE MULTIPLE FORMATS ---
+function parseEntryDate(dateStr) {
+    if (!dateStr) return { year: null, month: null, displayStr: '01/01/1970' };
+    
+    let y, m, d;
+    
+    // Format 1: DD/MM/YYYY
+    if (typeof dateStr === 'string' && dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            d = parts[0].padStart(2, '0');
+            m = parts[1].padStart(2, '0');
+            y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+        }
+    } 
+    // Format 2: YYYY-MM-DD or ISO String
+    else if (typeof dateStr === 'string' && dateStr.includes('-')) {
+        const cleanStr = dateStr.split('T')[0];
+        const parts = cleanStr.split('-');
+        if (parts.length === 3) {
+            y = parts[0];
+            m = parts[1].padStart(2, '0');
+            d = parts[2].padStart(2, '0');
+        }
+    }
+
+    if (y && m && d) {
+        return {
+            year: parseInt(y, 10),
+            month: parseInt(m, 10), // 1 - 12
+            isoDate: `${y}-${m}-${d}`,
+            displayStr: `${d}/${m}/${y}`
+        };
+    }
+
+    return { year: null, month: null, displayStr: dateStr };
+}
+
 // --- FETCH FROM SUPABASE ---
 async function fetchExpensesFromSupabase() {
     if (!supabase) {
@@ -98,7 +136,6 @@ function setupEventListeners() {
         }
 
         try {
-            // Native 1-line JS parse
             const parsed = JSON.parse(rawText);
 
             if (!Array.isArray(parsed) || parsed.length === 0) {
@@ -124,7 +161,7 @@ function setupEventListeners() {
                 };
             });
 
-            // Single batch insert into Supabase
+            // Batch insert into Supabase
             const { data, error } = await supabase
                 .from('expenses')
                 .insert(formattedEntries)
@@ -209,7 +246,7 @@ function setupEventListeners() {
     });
 }
 
-// --- RENDER MONTHLY BREAKDOWN ---
+// --- RENDER MONTHLY BREAKDOWN & TOTAL ---
 function renderExpenses() {
     const stats = $('expense-visual-stats');
     if (!stats) return;
@@ -233,12 +270,17 @@ function renderExpenses() {
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
     
-    // Filter by selected month
-    const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
-    const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
+    const selectedYear = displayDate.getFullYear();
+    const selectedMonth = displayDate.getMonth() + 1;
+
+    // Filter by selected year and month using robust parser
+    const active = globalExpensesCache.filter(e => {
+        const parsed = parseEntryDate(e.date);
+        return parsed.year === selectedYear && parsed.month === selectedMonth;
+    });
 
     active.forEach(e => {
-        const a = parseFloat(e.amount);
+        const a = parseFloat(e.amount) || 0;
         totalAll += a;
         if (totals[e.category] !== undefined) {
             totals[e.category] += a;
@@ -247,7 +289,7 @@ function renderExpenses() {
         }
     });
 
-    // Update monthly total pill
+    // Update main monthly total pill
     if ($('month-total-pill')) {
         $('month-total-pill').textContent = `$${totalAll.toFixed(2)}`;
     }
@@ -307,8 +349,14 @@ function renderExpandedLedger() {
     const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
     if (monthLabel) monthLabel.textContent = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
 
-    const prefix = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}`;
-    const active = globalExpensesCache.filter(e => e.date?.startsWith(prefix));
+    const selectedYear = displayDate.getFullYear();
+    const selectedMonth = displayDate.getMonth() + 1;
+
+    // Filter using robust parser
+    const active = globalExpensesCache.filter(e => {
+        const parsed = parseEntryDate(e.date);
+        return parsed.year === selectedYear && parsed.month === selectedMonth;
+    });
 
     // Calculate month total for expanded header
     const totalAll = active.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
@@ -337,11 +385,10 @@ function renderExpandedLedger() {
             const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800' };
             const badgeClass = meta.badgeColor || 'bg-gray-100 text-gray-800';
 
-            const dateParts = exp.date ? exp.date.split('-') : ['2026', '01', '01'];
-            const [y, m, d] = dateParts.length === 3 ? dateParts : ['2026', '01', '01'];
+            const parsedDate = parseEntryDate(exp.date);
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
-                <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${d}/${m}/${y}</td>
+                <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${parsedDate.displayStr}</td>
                 <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${badgeClass} text-[11px] font-bold">${meta.emoji || '📦'} ${exp.category}</span></td>
                 <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
                 <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
@@ -382,7 +429,11 @@ window.openExpenseModal = function(id) {
     $('edit-expense-id').value = exp.id;
     $('edit-expense-desc').value = exp.description;
     $('edit-expense-amount').value = exp.amount;
-    $('edit-expense-date').value = exp.date;
+    
+    // Ensure date input receives YYYY-MM-DD
+    const parsed = parseEntryDate(exp.date);
+    $('edit-expense-date').value = parsed.isoDate || exp.date;
+    
     $('edit-expense-category').value = exp.category;
 
     $('edit-expense-modal').classList.remove('hidden');
