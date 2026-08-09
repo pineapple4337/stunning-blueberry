@@ -270,14 +270,15 @@ function renderExpenses() {
 
     let totals = {}, totalAll = 0;
     
+    // Updated with pastel classes matching the new stylesheet
     const activeCatMap = CATEGORY_MAP || {
-        'food & drink': { emoji: '🍔', barColor: 'bg-rose-300', badgeColor: 'bg-rose-100 text-rose-800' },
-        'shopping': { emoji: '🛍️', barColor: 'bg-pink-300', badgeColor: 'bg-amber-100 text-amber-800' },
-        'subscriptions': { emoji: '📺', barColor: 'bg-purple-300', badgeColor: 'bg-purple-100 text-purple-800' },
-        'events': { emoji: '🎟️', barColor: 'bg-indigo-300', badgeColor: 'bg-indigo-100 text-indigo-800' },
-        'fees': { emoji: '💵', barColor: 'bg-blue-300', badgeColor: 'bg-blue-100 text-blue-800' },
-        'health': { emoji: '💊', barColor: 'bg-teal-300', badgeColor: 'bg-teal-100 text-teal-800' },
-        'transport': { emoji: '🚌', barColor: 'bg-emerald-300', badgeColor: 'bg-emerald-100 text-emerald-800' }
+        'food & drink': { emoji: '🍔', barColor: 'pastel-pink-1', badgeColor: 'pastel-pink-2 text-stone-800' },
+        'shopping': { emoji: '🛍️', barColor: 'pastel-orchid', badgeColor: 'pastel-pink-2 text-stone-800' },
+        'subscriptions': { emoji: '📺', barColor: 'pastel-purple-1', badgeColor: 'pastel-purple-2 text-stone-800' },
+        'events': { emoji: '🎟️', barColor: 'pastel-blue', badgeColor: 'pastel-blue text-stone-800' },
+        'fees': { emoji: '💵', barColor: 'pastel-yellow', badgeColor: 'pastel-yellow text-stone-800' },
+        'health': { emoji: '💊', barColor: 'pastel-mint', badgeColor: 'pastel-mint text-stone-800' },
+        'transport': { emoji: '🚌', barColor: 'pastel-mint', badgeColor: 'pastel-mint text-stone-800' }
     };
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
@@ -285,7 +286,6 @@ function renderExpenses() {
     const selectedYear = displayDate.getFullYear();
     const selectedMonth = displayDate.getMonth() + 1;
 
-    // Filter by year, month, AND selected category filter
     const active = globalExpensesCache.filter(e => {
         const parsed = parseEntryDate(e.date);
         const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
@@ -309,27 +309,26 @@ function renderExpenses() {
 
     let hasEntries = false;
 
-    // Streamlined category bar rendering
     Object.entries(totals).forEach(([cat, sum]) => {
         if (!sum) return;
         hasEntries = true;
         const pct = totalAll ? (sum / totalAll) * 100 : 0;
-        const meta = activeCatMap[cat] || { emoji: '📦', barColor: 'bg-gray-300' };
+        const meta = activeCatMap[cat] || { emoji: '📦', barColor: 'pastel-purple-1' };
 
         stats.appendChild(Object.assign(document.createElement('div'), {
-            className: "text-xs lowercase",
-            innerHTML: `<div class="flex justify-between font-semibold text-gray-600 items-center mb-1">
-                <span class="font-bold text-gray-700">${meta.emoji || '📦'} ${cat}</span>
-                <span class="font-bold text-gray-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
+            className: "text-sm lowercase",
+            innerHTML: `<div class="flex justify-between font-bold text-stone-700 items-center mb-1">
+                <span>${meta.emoji || '📦'} ${cat}</span>
+                <span class="text-stone-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
-            <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                <div class="${meta.barColor || 'bg-purple-300'} h-full transition-all duration-300" style="width: ${pct}%"></div>
+            <div class="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200">
+                <div class="${meta.barColor || 'pastel-purple-1'} h-full transition-all duration-300" style="width: ${pct}%"></div>
             </div>`
         }));
     });
 
     if (!hasEntries) {
-        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data found</div>`;
+        stats.innerHTML = `<div class="text-sm text-stone-400 lowercase text-center py-4">no expense data found</div>`;
     }
 
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
@@ -382,35 +381,35 @@ function renderExpandedLedger() {
 
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
-    let tableHtml = `<table class="w-full text-left border-collapse text-xs lowercase relative">
+    let tableHtml = `<table class="w-full text-left border-collapse text-sm lowercase relative">
         <thead>
-            <tr class="bg-gray-50 sticky top-0 border-b border-gray-100 font-bold text-gray-400 tracking-wider z-10">
-                <th class="p-3.5 w-28 pl-5">date</th>
-                <th class="p-3.5 w-40">category</th>
-                <th class="p-3.5">description</th>
-                <th class="p-3.5 w-32 text-right pr-6">amount</th>
+            <tr class="bg-stone-100/80 sticky top-0 border-b border-stone-200 font-bold text-stone-500 tracking-wider z-10">
+                <th class="p-3 w-28 pl-5">date</th>
+                <th class="p-3 w-40">category</th>
+                <th class="p-3">description</th>
+                <th class="p-3 w-32 text-right pr-6">amount</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">`;
+        <tbody class="divide-y divide-stone-100 font-semibold text-stone-700">`;
 
     if (active.length === 0) {
-        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found matching criteria</td></tr>`;
+        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-stone-400">no transactions found matching criteria</td></tr>`;
     } else {
         active.forEach(exp => {
             const catKey = (exp.category || '').toLowerCase();
-            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800' };
-            const badgeClass = meta.badgeColor || 'bg-gray-100 text-gray-800';
+            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'pastel-pink-2 text-stone-800' };
+            const badgeClass = meta.badgeColor || 'pastel-pink-2 text-stone-800';
             const parsedDate = parseEntryDate(exp.date);
             const amt = parseAmount(exp.amount);
 
-            tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-purple-50/40 transition-colors group cursor-pointer">
-                <td class="p-3.5 pl-5 text-gray-400 font-mono font-medium">${parsedDate.displayStr}</td>
-                <td class="p-3.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${badgeClass} text-[11px] font-bold">${meta.emoji || '📦'} ${exp.category}</span></td>
-                <td class="p-3.5 font-bold text-gray-700">${exp.description}</td>
-                <td class="p-3.5 text-right pr-5 font-extrabold text-gray-800">
+            tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-amber-100/50 transition-colors group cursor-pointer">
+                <td class="p-3 pl-5 text-stone-500 font-medium">${parsedDate.displayStr}</td>
+                <td class="p-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl ${badgeClass} text-xs font-bold border border-black/5">${meta.emoji || '📦'} ${exp.category}</span></td>
+                <td class="p-3 font-bold text-stone-800">${exp.description}</td>
+                <td class="p-3 text-right pr-5 font-bold text-stone-800">
                     <div class="flex items-center justify-end gap-2">
                         <span>-$${amt.toFixed(2)}</span>
-                        <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-gray-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                        <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-stone-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
                     </div>
                 </td>
             </tr>`;
