@@ -1,32 +1,106 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Import Gaegu font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&display=swap');
+
+:root {
+    /* Soft Paper & Handwritten Palette */
+    --bg-offwhite: #fdfbf7;
+    --paper-line: #e8e2d5;
+    
+    --pastel-pink-1: #ffccd5;
+    --pastel-pink-2: #fff0f3;
+    --pastel-purple-1: #e2d4f9;
+    --pastel-purple-2: #f4eeef;
+    --pastel-orchid: #f7c5f4;
+    --pastel-blue: #d0e6fd;
+    --pastel-mint: #d8f3dc;
+    --pastel-yellow: #fff3b0;
+    
+    --ink-dark: #3a3835;
+    --ink-subtle: #6e6a64;
+}
+
+/* Global Font and Notebook Paper Background */
+* {
+    font-family: 'Gaegu', cursive, sans-serif !important;
+}
 
 body { 
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background: radial-gradient(circle at top right, rgba(232, 219, 252, 0.15), transparent 400px),
-                radial-gradient(circle at bottom left, rgba(255, 214, 224, 0.15), transparent 400px),
-                #fafafa; 
+    font-family: 'Gaegu', cursive, sans-serif;
+    color: var(--ink-dark);
+    /* Off-white background with subtle notebook lined paper effect */
+    background-color: var(--bg-offwhite);
+    background-image: 
+        linear-gradient(var(--paper-line) 1px, transparent 1px),
+        radial-gradient(circle at top right, rgba(255, 204, 213, 0.25), transparent 400px),
+        radial-gradient(circle at bottom left, rgba(226, 212, 249, 0.25), transparent 400px);
+    background-size: 100% 28px, 100% 100%, 100% 100%;
     overscroll-behavior-y: contain; 
+    font-size: 1.15rem; /* Gaegu runs slightly small, boosted for readability */
+    letter-spacing: 0.02em;
 }
-.pastel-pink-1 { background-color: #ffd6e0; }
-.pastel-pink-2 { background-color: #ffeff2; }
-.pastel-purple-1 { background-color: #e8dbfc; }
-.pastel-purple-2 { background-color: #f3ebff; }
-.pastel-orchid { background-color: #fbcbf5; }
-.pastel-blue { background-color: #d6eaff; }
-.pastel-mint { background-color: #e1f7ec; }
 
+/* Typography Enhancements for Handwritten Feel */
+h1, h2, h3, h4, h5, h6, button, input, select, textarea {
+    font-family: 'Gaegu', cursive, sans-serif !important;
+    font-weight: 700;
+}
+
+/* Pastel Utility Classes */
+.pastel-pink-1 { background-color: var(--pastel-pink-1); }
+.pastel-pink-2 { background-color: var(--pastel-pink-2); }
+.pastel-purple-1 { background-color: var(--pastel-purple-1); }
+.pastel-purple-2 { background-color: var(--pastel-purple-2); }
+.pastel-orchid { background-color: var(--pastel-orchid); }
+.pastel-blue { background-color: var(--pastel-blue); }
+.pastel-mint { background-color: var(--pastel-mint); }
+.pastel-yellow { background-color: var(--pastel-yellow); }
+
+/* Scrollbar Hide Utilities */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Paper Card Style (Replaces Glossy Glass) */
 .glass-card {
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: #ffffff;
+    border: 2px solid #e2dacd;
+    box-shadow: 3px 4px 0px rgba(100, 90, 80, 0.08);
+    border-radius: 18px;
 }
 
+/* Form Inputs & Interactive Elements */
+input, select, textarea {
+    background-color: #faf7f2 !important;
+    border: 1.5px dashed #d6cebf !important;
+    color: var(--ink-dark) !important;
+    border-radius: 12px;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none !important;
+    border: 1.5px solid #b5a895 !important;
+    background-color: #ffffff !important;
+}
+
+/* Responsive Rules */
 @media (max-width: 767px) {
-    body { height: auto !important; overflow-x: hidden; overscroll-behavior-y: contain; }
-    main { flex-direction: column !important; overflow: visible !important; height: auto !important; }
-    #mobile-sec-calendar, #mobile-sec-timeline, #mobile-sec-expenses { height: auto !important; max-height: none !important; }
-    ul#todo-list { overflow: visible !important; max-height: none !important; }
+    body { 
+        height: auto !important; 
+        overflow-x: hidden; 
+        overscroll-behavior-y: contain; 
+    }
+    main { 
+        flex-direction: column !important; 
+        overflow: visible !important; 
+        height: auto !important; 
+    }
+    #mobile-sec-calendar, 
+    #mobile-sec-timeline, 
+    #mobile-sec-expenses { 
+        height: auto !important; 
+        max-height: none !important; 
+    }
+    ul#todo-list { 
+        overflow: visible !important; 
+        max-height: none !important; 
+    }
 }
