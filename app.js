@@ -9,6 +9,7 @@ const $ = (id) => document.getElementById(id);
 // --- GLOBAL STATE ---
 let globalExpensesCache = [];
 let displayDate = new Date();
+let selectedCategoryFilter = 'all';
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -103,6 +104,12 @@ async function fetchExpensesFromSupabase() {
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
+    // Category Filter Listener
+    $('category-filter-select')?.addEventListener('change', (e) => {
+        selectedCategoryFilter = e.target.value;
+        renderExpenses();
+    });
+    
     // Single Form Submit (Add Entry)
     $('expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -281,7 +288,10 @@ function renderExpenses() {
     // Filter by selected year and month using robust parser
     const active = globalExpensesCache.filter(e => {
         const parsed = parseEntryDate(e.date);
-        return parsed.year === selectedYear && parsed.month === selectedMonth;
+        const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
+        const matchesCat = selectedCategoryFilter === 'all' || 
+                           (e.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
+        return matchesMonth && matchesCat;
     });
 
     console.log(`Active items for ${selectedMonth}/${selectedYear}:`, active);
@@ -362,7 +372,10 @@ function renderExpandedLedger() {
 
     const active = globalExpensesCache.filter(e => {
         const parsed = parseEntryDate(e.date);
-        return parsed.year === selectedYear && parsed.month === selectedMonth;
+        const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
+        const matchesCat = selectedCategoryFilter === 'all' || 
+                           (e.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
+        return matchesMonth && matchesCat;
     });
 
     const totalAll = active.reduce((sum, e) => sum + parseAmount(e.amount), 0);
