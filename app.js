@@ -78,7 +78,7 @@ function parseEntryDate(dateStr) {
 // --- FETCH FROM SUPABASE ---
 async function fetchExpensesFromSupabase() {
     if (!supabase) {
-        console.error("Supabase client not initialised.");
+        console.error("Supabase client not initialized.");
         return;
     }
 
@@ -165,7 +165,7 @@ function setupEventListeners() {
 
                 return {
                     date: date,
-                    category: (item.category || 'other').toLowerCase().trim(),
+                    category: (item.category || 'shopping').toLowerCase().trim(),
                     amount: parseAmount(item.amount),
                     description: (item.description || 'expense').toLowerCase().trim()
                 };
@@ -268,9 +268,7 @@ function renderExpenses() {
         'events': { emoji: '🎟️', barColor: 'bg-indigo-300', badgeColor: 'bg-indigo-100 text-indigo-800' },
         'fees': { emoji: '💵', barColor: 'bg-blue-300', badgeColor: 'bg-blue-100 text-blue-800' },
         'health': { emoji: '💊', barColor: 'bg-teal-300', badgeColor: 'bg-teal-100 text-teal-800' },
-        'transport': { emoji: '🚌', barColor: 'bg-emerald-300', badgeColor: 'bg-emerald-100 text-emerald-800' },
-        'utilities': { emoji: '⚡', barColor: 'bg-amber-300', badgeColor: 'bg-sky-100 text-sky-800' },
-        'other': { emoji: '📦', barColor: 'bg-gray-300', badgeColor: 'bg-gray-100 text-gray-800' }
+        'transport': { emoji: '🚌', barColor: 'bg-emerald-300', badgeColor: 'bg-emerald-100 text-emerald-800' }
     };
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
@@ -290,11 +288,9 @@ function renderExpenses() {
     active.forEach(e => {
         const a = parseAmount(e.amount);
         totalAll += a;
-        const cat = (e.category || 'other').toLowerCase();
+        const cat = (e.category || '').toLowerCase();
         if (totals[cat] !== undefined) {
             totals[cat] += a;
-        } else {
-            totals['other'] = (totals['other'] || 0) + a;
         }
     });
 
@@ -390,7 +386,7 @@ function renderExpandedLedger() {
         tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found matching criteria</td></tr>`;
     } else {
         active.forEach(exp => {
-            const catKey = (exp.category || 'other').toLowerCase();
+            const catKey = (exp.category || '').toLowerCase();
             const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'bg-gray-100 text-gray-800' };
             const badgeClass = meta.badgeColor || 'bg-gray-100 text-gray-800';
             const parsedDate = parseEntryDate(exp.date);
