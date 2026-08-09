@@ -227,7 +227,7 @@ function setupEventListeners() {
         }
     });
 
-    // Month Navigation (Resets Filter)
+    // Month Navigation
     $('prev-month-btn')?.addEventListener('click', () => {
         resetCategoryFilter();
         displayDate.setMonth(displayDate.getMonth() - 1);
@@ -270,7 +270,6 @@ function renderExpenses() {
 
     let totals = {}, totalAll = 0;
     
-    // Updated with pastel classes matching the new stylesheet
     const activeCatMap = CATEGORY_MAP || {
         'food & drink': { emoji: '🍔', barColor: 'pastel-pink-1', badgeColor: 'pastel-pink-2 text-stone-800' },
         'shopping': { emoji: '🛍️', barColor: 'pastel-orchid', badgeColor: 'pastel-pink-2 text-stone-800' },
@@ -316,19 +315,19 @@ function renderExpenses() {
         const meta = activeCatMap[cat] || { emoji: '📦', barColor: 'pastel-purple-1' };
 
         stats.appendChild(Object.assign(document.createElement('div'), {
-            className: "text-sm lowercase",
+            className: "text-base lowercase",
             innerHTML: `<div class="flex justify-between font-bold text-stone-700 items-center mb-1">
                 <span>${meta.emoji || '📦'} ${cat}</span>
                 <span class="text-stone-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
-            <div class="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200">
+            <div class="w-full bg-stone-100 h-3 rounded-full overflow-hidden border border-stone-200">
                 <div class="${meta.barColor || 'pastel-purple-1'} h-full transition-all duration-300" style="width: ${pct}%"></div>
             </div>`
         }));
     });
 
     if (!hasEntries) {
-        stats.innerHTML = `<div class="text-sm text-stone-400 lowercase text-center py-4">no expense data found</div>`;
+        stats.innerHTML = `<div class="text-base text-stone-400 lowercase text-center py-4">no expense data found</div>`;
     }
 
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
@@ -381,13 +380,13 @@ function renderExpandedLedger() {
 
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
-    let tableHtml = `<table class="w-full text-left border-collapse text-sm lowercase relative">
+    let tableHtml = `<table class="w-full text-left border-collapse text-base lowercase relative">
         <thead>
             <tr class="bg-stone-100/80 sticky top-0 border-b border-stone-200 font-bold text-stone-500 tracking-wider z-10">
-                <th class="p-3 w-28 pl-5">date</th>
-                <th class="p-3 w-40">category</th>
+                <th class="p-3 w-32 pl-5">date</th>
+                <th class="p-3 w-44">category</th>
                 <th class="p-3">description</th>
-                <th class="p-3 w-32 text-right pr-6">amount</th>
+                <th class="p-3 w-36 text-right pr-6">amount</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-stone-100 font-semibold text-stone-700">`;
@@ -404,7 +403,7 @@ function renderExpandedLedger() {
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-amber-100/50 transition-colors group cursor-pointer">
                 <td class="p-3 pl-5 text-stone-500 font-medium">${parsedDate.displayStr}</td>
-                <td class="p-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl ${badgeClass} text-xs font-bold border border-black/5">${meta.emoji || '📦'} ${exp.category}</span></td>
+                <td class="p-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl ${badgeClass} text-sm font-bold border border-black/5">${meta.emoji || '📦'} ${exp.category}</span></td>
                 <td class="p-3 font-bold text-stone-800">${exp.description}</td>
                 <td class="p-3 text-right pr-5 font-bold text-stone-800">
                     <div class="flex items-center justify-end gap-2">
