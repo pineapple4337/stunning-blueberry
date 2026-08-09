@@ -34,7 +34,6 @@ function updateMonthDisplay() {
 function parseAmount(val) {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
-    // Strip $, commas, and non-numeric chars except dot
     const cleaned = String(val).replace(/[^0-9.-]/g, '');
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
@@ -47,7 +46,6 @@ function parseEntryDate(dateStr) {
     let y, m, d;
     const str = String(dateStr).trim();
     
-    // Format 1: DD/MM/YYYY
     if (str.includes('/')) {
         const parts = str.split('/');
         if (parts.length === 3) {
@@ -55,9 +53,7 @@ function parseEntryDate(dateStr) {
             m = parts[1].padStart(2, '0');
             y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
         }
-    } 
-    // Format 2: YYYY-MM-DD or ISO String
-    else if (str.includes('-')) {
+    } else if (str.includes('-')) {
         const cleanStr = str.split('T')[0];
         const parts = cleanStr.split('-');
         if (parts.length === 3) {
@@ -70,7 +66,7 @@ function parseEntryDate(dateStr) {
     if (y && m && d) {
         return {
             year: parseInt(y, 10),
-            month: parseInt(m, 10), // 1 - 12
+            month: parseInt(m, 10),
             isoDate: `${y}-${m}-${d}`,
             displayStr: `${d}/${m}/${y}`
         };
@@ -95,7 +91,6 @@ async function fetchExpensesFromSupabase() {
         if (error) throw error;
 
         globalExpensesCache = data || [];
-        console.log("Raw items loaded from Supabase:", globalExpensesCache);
         renderExpenses();
     } catch (err) {
         console.error("Error fetching expenses from Supabase:", err.message);
@@ -104,13 +99,7 @@ async function fetchExpensesFromSupabase() {
 
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
-    // Category Filter Listener
-    $('category-filter-select')?.addEventListener('change', (e) => {
-        selectedCategoryFilter = e.target.value;
-        renderExpenses();
-    });
-    
-    // Single Form Submit (Add Entry)
+    // Add Single Expense Form
     $('expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const newExpense = {
@@ -140,7 +129,13 @@ function setupEventListeners() {
         }
     });
 
-    // BULK JSON IMPORT LISTENER
+    // Category Filter Dropdown Listener
+    $('category-filter-select')?.addEventListener('change', (e) => {
+        selectedCategoryFilter = e.target.value;
+        renderExpenses();
+    });
+
+    // Bulk JSON Import
     $('import-json-btn')?.addEventListener('click', async () => {
         let rawText = $('json-text-input')?.value?.trim();
 
@@ -176,7 +171,7 @@ function setupEventListeners() {
                 };
             });
 
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('expenses')
                 .insert(formattedEntries)
                 .select();
@@ -194,7 +189,7 @@ function setupEventListeners() {
         }
     });
 
-    // Edit Form Submit
+    // Edit Expense Form
     $('edit-expense-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = $('edit-expense-id').value;
@@ -238,17 +233,15 @@ function setupEventListeners() {
         renderExpenses();
     });
 
-    // Transaction Ledger Modal Toggles
+    // Modal Toggles
     $('open-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
     $('close-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
     $('expanded-ledger-modal')?.addEventListener('click', (e) => {
         if (e.target === $('expanded-ledger-modal')) toggleLedgerFullscreen();
     });
 
-    // Edit Modal Toggles
     $('cancel-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
 
-    // Escape Key Listener
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
@@ -285,7 +278,7 @@ function renderExpenses() {
     const selectedYear = displayDate.getFullYear();
     const selectedMonth = displayDate.getMonth() + 1;
 
-    // Filter by selected year and month using robust parser
+    // Filter by year, month, AND selected category filter
     const active = globalExpensesCache.filter(e => {
         const parsed = parseEntryDate(e.date);
         const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
@@ -293,8 +286,6 @@ function renderExpenses() {
                            (e.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
         return matchesMonth && matchesCat;
     });
-
-    console.log(`Active items for ${selectedMonth}/${selectedYear}:`, active);
 
     active.forEach(e => {
         const a = parseAmount(e.amount);
@@ -307,14 +298,13 @@ function renderExpenses() {
         }
     });
 
-    // Update main monthly total pill
     if ($('month-total-pill')) {
         $('month-total-pill').textContent = `$${totalAll.toFixed(2)}`;
     }
 
     let hasEntries = false;
 
-    // Render category stats
+    // Streamlined category bar rendering
     Object.entries(totals).forEach(([cat, sum]) => {
         if (!sum) return;
         hasEntries = true;
@@ -334,7 +324,7 @@ function renderExpenses() {
     });
 
     if (!hasEntries) {
-        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data for this month</div>`;
+        stats.innerHTML = `<div class="text-xs text-gray-400 lowercase text-center py-4">no expense data found</div>`;
     }
 
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
@@ -397,7 +387,7 @@ function renderExpandedLedger() {
         <tbody class="divide-y divide-gray-50 font-semibold text-gray-600">`;
 
     if (active.length === 0) {
-        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found for this month</td></tr>`;
+        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-gray-400">no transactions found matching criteria</td></tr>`;
     } else {
         active.forEach(exp => {
             const catKey = (exp.category || 'other').toLowerCase();
