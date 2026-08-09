@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen pb-12">
@@ -94,12 +94,27 @@
     <div id="expanded-ledger-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <div>
-                    <h3 class="text-base font-extrabold text-gray-900 lowercase">transaction ledger</h3>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <p id="expanded-month-label" class="text-xs font-bold text-gray-400 lowercase">july 2026</p>
-                        <span id="expanded-month-total" class="text-xs font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-mono">$0.00</span>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div>
+                        <h3 class="text-base font-extrabold text-gray-900 lowercase">transaction ledger</h3>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <p id="expanded-month-label" class="text-xs font-bold text-gray-400 lowercase">july 2026</p>
+                            <span id="expanded-month-total" class="text-xs font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-mono">$0.00</span>
+                        </div>
                     </div>
+                    <!-- CATEGORY FILTER SELECT -->
+                    <select id="category-filter-select" class="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-xl lowercase focus:outline-none focus:border-purple-500 text-gray-600 font-bold cursor-pointer shadow-2xs">
+                        <option value="all">all categories</option>
+                        <option value="food & drink">🍔 food & drink</option>
+                        <option value="shopping">🛍️ shopping</option>
+                        <option value="subscriptions">📺 subscriptions</option>
+                        <option value="events">🎟️ events</option>
+                        <option value="fees">💵 fees</option>
+                        <option value="health">💊 health</option>
+                        <option value="transport">🚌 transport</option>
+                        <option value="utilities">⚡ utilities</option>
+                        <option value="other">📦 other</option>
+                    </select>
                 </div>
                 <button id="close-ledger-btn" class="p-2 text-gray-400 hover:text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors cursor-pointer text-sm">✕</button>
             </div>
