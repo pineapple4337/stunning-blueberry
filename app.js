@@ -78,7 +78,7 @@ function parseEntryDate(dateStr) {
 // --- FETCH FROM SUPABASE ---
 async function fetchExpensesFromSupabase() {
     if (!supabase) {
-        console.error("Supabase client not initialized.");
+        console.error("Supabase client not initialised.");
         return;
     }
 
