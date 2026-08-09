@@ -27,7 +27,6 @@
 body { 
     font-family: 'Gaegu', cursive, sans-serif;
     color: var(--ink-dark);
-    /* Off-white background with subtle notebook lined paper effect */
     background-color: var(--bg-offwhite);
     background-image: 
         linear-gradient(var(--paper-line) 1px, transparent 1px),
@@ -35,7 +34,7 @@ body {
         radial-gradient(circle at bottom left, rgba(226, 212, 249, 0.25), transparent 400px);
     background-size: 100% 28px, 100% 100%, 100% 100%;
     overscroll-behavior-y: contain; 
-    font-size: 1.15rem; /* Gaegu runs slightly small, boosted for readability */
+    font-size: 1.35rem; /* Increased base font size for better readability */
     letter-spacing: 0.02em;
 }
 
@@ -59,7 +58,7 @@ h1, h2, h3, h4, h5, h6, button, input, select, textarea {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Paper Card Style (Replaces Glossy Glass) */
+/* Paper Card Style */
 .glass-card {
     background: #ffffff;
     border: 2px solid #e2dacd;
@@ -73,6 +72,7 @@ input, select, textarea {
     border: 1.5px dashed #d6cebf !important;
     color: var(--ink-dark) !important;
     border-radius: 12px;
+    font-size: 1.15rem !important; /* Scaled up input font size */
 }
 
 input:focus, select:focus, textarea:focus {
@@ -92,15 +92,5 @@ input:focus, select:focus, textarea:focus {
         flex-direction: column !important; 
         overflow: visible !important; 
         height: auto !important; 
-    }
-    #mobile-sec-calendar, 
-    #mobile-sec-timeline, 
-    #mobile-sec-expenses { 
-        height: auto !important; 
-        max-height: none !important; 
-    }
-    ul#todo-list { 
-        overflow: visible !important; 
-        max-height: none !important; 
     }
 }
