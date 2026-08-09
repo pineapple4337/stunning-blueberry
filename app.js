@@ -30,6 +30,13 @@ function updateMonthDisplay() {
     }
 }
 
+// --- HELPER: RESET FILTER STATE & DROPDOWN ---
+function resetCategoryFilter() {
+    selectedCategoryFilter = 'all';
+    const select = $('category-filter-select');
+    if (select) select.value = 'all';
+}
+
 // --- HELPER: SAFE AMOUNT PARSER ---
 function parseAmount(val) {
     if (val === null || val === undefined) return 0;
@@ -220,14 +227,16 @@ function setupEventListeners() {
         }
     });
 
-    // Month Navigation
+    // Month Navigation (Resets Filter)
     $('prev-month-btn')?.addEventListener('click', () => {
+        resetCategoryFilter();
         displayDate.setMonth(displayDate.getMonth() - 1);
         updateMonthDisplay();
         renderExpenses();
     });
 
     $('next-month-btn')?.addEventListener('click', () => {
+        resetCategoryFilter();
         displayDate.setMonth(displayDate.getMonth() + 1);
         updateMonthDisplay();
         renderExpenses();
@@ -339,6 +348,8 @@ function toggleLedgerFullscreen() {
         renderExpandedLedger();
     } else {
         modal.classList.add('hidden');
+        resetCategoryFilter();
+        renderExpenses();
     }
 }
 window.toggleLedgerFullscreen = toggleLedgerFullscreen;
