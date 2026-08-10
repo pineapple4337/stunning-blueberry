@@ -286,20 +286,33 @@
         
             if (apiKey) {
                 try {
-                    // Using the native v1beta endpoint
-                    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-                    const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
+                    // Updated model string to gemini-2.5-flash-lite in the URL endpoint
+                    const endpoint = 'https://googleapis.com';
+                    const prompt = `Analyze this unformatted note. Return a JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
         
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            'x-goog-api-key': apiKey // Pass the AQ... key via header
+                            'x-goog-api-key': apiKey
                         },
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
                             generationConfig: {
-                                responseMimeType: "application/json"
+                                responseMimeType: "application/json",
+                                // Forces Gemini to strictly match your structure
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        title: { type: "STRING" },
+                                        summary: { type: "STRING" },
+                                        tags: { 
+                                            type: "ARRAY", 
+                                            items: { type: "STRING" } 
+                                        }
+                                    },
+                                    required: ["title", "summary", "tags"]
+                                }
                             }
                         })
                     });
