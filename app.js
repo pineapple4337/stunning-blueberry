@@ -85,7 +85,7 @@ function parseEntryDate(dateStr) {
 // --- FETCH FROM SUPABASE ---
 async function fetchExpensesFromSupabase() {
     if (!supabase) {
-        console.error("Supabase client not initialized.");
+        console.error("supabase client not initialized.");
         return;
     }
 
@@ -100,7 +100,7 @@ async function fetchExpensesFromSupabase() {
         globalExpensesCache = data || [];
         renderExpenses();
     } catch (err) {
-        console.error("Error fetching expenses from Supabase:", err.message);
+        console.error("error fetching expenses from supabase:", err.message);
     }
 }
 
@@ -113,7 +113,7 @@ function setupEventListeners() {
             description: $('expense-desc').value.toLowerCase(),
             amount: parseAmount($('expense-amount').value),
             date: $('expense-date').value,
-            category: $('expense-category').value
+            category: $('expense-category').value.toLowerCase()
         };
 
         try {
@@ -132,13 +132,13 @@ function setupEventListeners() {
             $('expense-form').reset();
             initDefaultDate();
         } catch (err) {
-            console.error("Failed to add expense:", err.message);
+            console.error("failed to add expense:", err.message);
         }
     });
 
     // Category Filter Dropdown Listener
     $('category-filter-select')?.addEventListener('change', (e) => {
-        selectedCategoryFilter = e.target.value;
+        selectedCategoryFilter = e.target.value.toLowerCase();
         renderExpenses();
     });
 
@@ -191,7 +191,7 @@ function setupEventListeners() {
             await fetchExpensesFromSupabase();
 
         } catch (err) {
-            console.error("JSON import error:", err);
+            console.error("json import error:", err);
             alert(`could not parse json. error: ${err.message}`);
         }
     });
@@ -204,7 +204,7 @@ function setupEventListeners() {
             description: $('edit-expense-desc').value.toLowerCase(),
             amount: parseAmount($('edit-expense-amount').value),
             date: $('edit-expense-date').value,
-            category: $('edit-expense-category').value
+            category: $('edit-expense-category').value.toLowerCase()
         };
 
         try {
@@ -223,7 +223,7 @@ function setupEventListeners() {
             renderExpenses();
             closeExpenseModal();
         } catch (err) {
-            console.error("Failed to update expense:", err.message);
+            console.error("failed to update expense:", err.message);
         }
     });
 
@@ -271,13 +271,13 @@ function renderExpenses() {
     let totals = {}, totalAll = 0;
     
     const activeCatMap = CATEGORY_MAP || {
-        'food & drink': { emoji: '🍔', barColor: 'pastel-pink-1', badgeColor: 'pastel-pink-2 text-stone-800' },
-        'shopping': { emoji: '🛍️', barColor: 'pastel-orchid', badgeColor: 'pastel-pink-2 text-stone-800' },
-        'subscriptions': { emoji: '📺', barColor: 'pastel-purple-1', badgeColor: 'pastel-purple-2 text-stone-800' },
-        'events': { emoji: '🎟️', barColor: 'pastel-blue', badgeColor: 'pastel-blue text-stone-800' },
-        'fees': { emoji: '💵', barColor: 'pastel-yellow', badgeColor: 'pastel-yellow text-stone-800' },
-        'health': { emoji: '💊', barColor: 'pastel-mint', badgeColor: 'pastel-mint text-stone-800' },
-        'transport': { emoji: '🚌', barColor: 'pastel-mint', badgeColor: 'pastel-mint text-stone-800' }
+        'food & drink': { barColor: 'bg-blue-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'shopping': { barColor: 'bg-indigo-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'subscriptions': { barColor: 'bg-sky-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'events': { barColor: 'bg-teal-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'fees': { barColor: 'bg-amber-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'health': { barColor: 'bg-emerald-600', badgeColor: 'bg-slate-100 text-slate-800' },
+        'transport': { barColor: 'bg-cyan-600', badgeColor: 'bg-slate-100 text-slate-800' }
     };
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
@@ -312,22 +312,22 @@ function renderExpenses() {
         if (!sum) return;
         hasEntries = true;
         const pct = totalAll ? (sum / totalAll) * 100 : 0;
-        const meta = activeCatMap[cat] || { emoji: '📦', barColor: 'pastel-purple-1' };
+        const meta = activeCatMap[cat] || { barColor: 'bg-blue-600' };
 
         stats.appendChild(Object.assign(document.createElement('div'), {
-            className: "text-base lowercase",
-            innerHTML: `<div class="flex justify-between font-bold text-stone-700 items-center mb-1">
-                <span>${meta.emoji || '📦'} ${cat}</span>
-                <span class="text-stone-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
+            className: "text-xs font-semibold",
+            innerHTML: `<div class="flex justify-between text-slate-700 items-center mb-1">
+                <span>${cat}</span>
+                <span class="text-slate-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
-            <div class="w-full bg-stone-100 h-3 rounded-full overflow-hidden border border-stone-200">
-                <div class="${meta.barColor || 'pastel-purple-1'} h-full transition-all duration-300" style="width: ${pct}%"></div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div class="${meta.barColor || 'bg-blue-600'} h-full transition-all duration-300" style="width: ${pct}%"></div>
             </div>`
         }));
     });
 
     if (!hasEntries) {
-        stats.innerHTML = `<div class="text-base text-stone-400 lowercase text-center py-4">no expense data found</div>`;
+        stats.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">no expense data found</div>`;
     }
 
     if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
@@ -380,35 +380,35 @@ function renderExpandedLedger() {
 
     statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
 
-    let tableHtml = `<table class="w-full text-left border-collapse text-base lowercase relative">
+    let tableHtml = `<table class="w-full text-left border-collapse text-xs relative">
         <thead>
-            <tr class="bg-stone-100/80 sticky top-0 border-b border-stone-200 font-bold text-stone-500 tracking-wider z-10">
+            <tr class="bg-slate-50 sticky top-0 border-b border-slate-200 font-semibold text-slate-500 tracking-wider z-10">
                 <th class="p-3 w-32 pl-5">date</th>
                 <th class="p-3 w-44">category</th>
                 <th class="p-3">description</th>
                 <th class="p-3 w-36 text-right pr-6">amount</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-stone-100 font-semibold text-stone-700">`;
+        <tbody class="divide-y divide-slate-100 font-medium text-slate-700">`;
 
     if (active.length === 0) {
-        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-stone-400">no transactions found matching criteria</td></tr>`;
+        tableHtml += `<tr><td colspan="4" class="p-8 text-center text-slate-400">no transactions found matching criteria</td></tr>`;
     } else {
         active.forEach(exp => {
             const catKey = (exp.category || '').toLowerCase();
-            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { emoji: '📦', badgeColor: 'pastel-pink-2 text-stone-800' };
-            const badgeClass = meta.badgeColor || 'pastel-pink-2 text-stone-800';
+            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { badgeColor: 'bg-slate-100 text-slate-700' };
+            const badgeClass = meta.badgeColor || 'bg-slate-100 text-slate-700';
             const parsedDate = parseEntryDate(exp.date);
             const amt = parseAmount(exp.amount);
 
-            tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-amber-100/50 transition-colors group cursor-pointer">
-                <td class="p-3 pl-5 text-stone-500 font-medium">${parsedDate.displayStr}</td>
-                <td class="p-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xl ${badgeClass} text-sm font-bold border border-black/5">${meta.emoji || '📦'} ${exp.category}</span></td>
-                <td class="p-3 font-bold text-stone-800">${exp.description}</td>
-                <td class="p-3 text-right pr-5 font-bold text-stone-800">
+            tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-slate-50 transition-colors group cursor-pointer">
+                <td class="p-3 pl-5 text-slate-500">${parsedDate.displayStr}</td>
+                <td class="p-3"><span class="inline-flex items-center px-2 py-0.5 rounded-md ${badgeClass} text-xs font-semibold">${exp.category}</span></td>
+                <td class="p-3 font-semibold text-slate-900">${exp.description}</td>
+                <td class="p-3 text-right pr-5 font-semibold text-slate-900">
                     <div class="flex items-center justify-end gap-2">
                         <span>-$${amt.toFixed(2)}</span>
-                        <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-stone-300 hover:text-rose-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                        <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-slate-300 hover:text-red-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
                     </div>
                 </td>
             </tr>`;
@@ -432,7 +432,7 @@ window.deleteExpense = async function(id) {
         globalExpensesCache = globalExpensesCache.filter(e => e.id != id);
         renderExpenses();
     } catch (err) {
-        console.error("Failed to delete expense:", err.message);
+        console.error("failed to delete expense:", err.message);
     }
 };
 
