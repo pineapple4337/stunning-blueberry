@@ -88,7 +88,7 @@
                 <span class="cat-badge cat-ai">gemini ai</span>
                 <span class="text-xs text-slate-500 font-medium">auto-summarize raw notes (optional)</span>
             </div>
-            <input type="password" id="gemini-api-key" placeholder="paste gemini api key (optional)" class="px-3 py-1.5 w-full sm:w-64 text-xs">
+            <input type="text" id="gemini-api-key" placeholder="paste gemini api key (optional)" autocomplete="off" class="px-3 py-1.5 w-full sm:w-64 text-xs">
         </div>
 
         <!-- ADD NOTE FORM -->
@@ -281,13 +281,12 @@
         }
 
         // --- SMART PARSING ---
-        async function processNoteContent(content, userTitle) {
+        async function processNoteContent(content, userTitle, allowAi = true) {
             const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
         
-            if (apiKey) {
+            if (apiKey && allowAi) {
                 try {
-                    // Updated model string to gemini-2.5-flash-lite in the URL endpoint
-                    const endpoint = 'https://googleapis.com';
+                    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
                     const prompt = `Analyze this unformatted note. Return a JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
         
                     const response = await fetch(endpoint, {
@@ -300,7 +299,6 @@
                             contents: [{ parts: [{ text: prompt }] }],
                             generationConfig: {
                                 responseMimeType: "application/json",
-                                // Forces Gemini to strictly match your structure
                                 responseSchema: {
                                     type: "OBJECT",
                                     properties: {
