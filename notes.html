@@ -103,7 +103,7 @@
             </form>
         </div>
 
-        <!-- MERGE TOOLBAR (HIDDEN BY DEFAULT) -->
+        <!-- MERGE TOOLBAR -->
         <div id="merge-toolbar" class="glass-card p-4 flex justify-between items-center bg-blue-50/50 border-blue-200 hidden">
             <div class="flex items-center gap-2">
                 <span id="selected-count" class="text-xs font-bold text-blue-900">0 notes selected</span>
@@ -132,6 +132,29 @@
 
     </main>
 
+    <!-- EDIT NOTE MODAL -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h2 class="text-xs font-semibold text-slate-500 tracking-wider">edit note</h2>
+                <button onclick="window.closeEditModal()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+            <form id="edit-note-form" class="space-y-3">
+                <input type="hidden" id="edit-note-id">
+                <input type="text" id="edit-note-title" placeholder="title or topic" class="w-full px-3.5 py-2">
+                <textarea id="edit-note-content" rows="6" required class="w-full px-3.5 py-2.5 text-sm"></textarea>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">
+                        cancel
+                    </button>
+                    <button type="submit" id="update-note-btn" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                        update note
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         import { APP_CONFIG } from './config.js';
 
@@ -156,6 +179,7 @@
                 localStorage.setItem('gemini_key', e.target.value.trim());
             });
 
+            // Create Note Form
             $('note-form')?.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const titleInput = $('note-title');
@@ -201,13 +225,57 @@
                     saveBtn.innerHTML = `<span>save note</span>`;
                 }
             });
+
+            // Update Note Form
+            $('edit-note-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = $('edit-note-id').value;
+                const title = $('edit-note-title').value.trim().toLowerCase();
+                const content = $('edit-note-content').value.trim().toLowerCase();
+                const updateBtn = $('update-note-btn');
+
+                if (!content || !id) return;
+
+                updateBtn.disabled = true;
+                updateBtn.innerText = 'updating...';
+
+                try {
+                    const aiResult = await processNoteContent(content, title);
+
+                    const updatedFields = {
+                        title: aiResult.title || title || 'untitled note',
+                        raw_content: content,
+                        summary: aiResult.summary,
+                        tags: aiResult.tags || []
+                    };
+
+                    const { error } = await supabase
+                        .from('notes')
+                        .update(updatedFields)
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    const index = globalNotesCache.findIndex(n => String(n.id) === String(id));
+                    if (index !== -1) {
+                        globalNotesCache[index] = { ...globalNotesCache[index], ...updatedFields };
+                    }
+
+                    window.closeEditModal();
+                    renderNotes();
+                } catch (err) {
+                    console.error('error updating note:', err.message);
+                } finally {
+                    updateBtn.disabled = false;
+                    updateBtn.innerText = 'update note';
+                }
+            });
         }
 
-        // --- SMART PARSING (AI OR OFFLINE REGEX FALLBACK) ---
+        // --- SMART PARSING ---
         async function processNoteContent(content, userTitle) {
             const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
 
-            // AI Processing if key exists
             if (apiKey) {
                 try {
                     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -234,8 +302,6 @@
                 }
             }
 
-            // --- OFFLINE SMART FEATURES (NO AI NEEDED) ---
-            // 1. Hashtag extraction (#tag)
             const hashtagRegex = /#(\w+)/g;
             const extractedTags = [];
             let match;
@@ -243,7 +309,6 @@
                 extractedTags.push(match[1].toLowerCase());
             }
 
-            // 2. Local heuristic summary (first meaningful sentence or 120 chars)
             const cleanLines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const fallbackTitle = userTitle || (cleanLines[0] ? cleanLines[0].replace(/^#*\s*/, '').slice(0, 35) : 'untitled note');
             const localSummary = cleanLines.join(' ').slice(0, 120) + (content.length > 120 ? '...' : '');
@@ -276,7 +341,7 @@
             }
         }
 
-        // --- RENDER NOTES WITH CHECKBOXES ---
+        // --- RENDER NOTES ---
         function renderNotes() {
             const list = $('notes-list');
             const badge = $('note-count-badge');
@@ -295,8 +360,6 @@
                 
                 const isChecked = selectedNoteIds.has(String(note.id));
                 const tagsHtml = (note.tags || []).map(t => `<span class="cat-badge cat-tag mr-1">#${t}</span>`).join('');
-
-                // Calculate reading time metric offline
                 const wordCount = note.raw_content.trim().split(/\s+/).length;
                 const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
@@ -309,9 +372,12 @@
                                     class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0">
                                 <h3 class="text-sm font-bold text-slate-900 truncate">${note.title}</h3>
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="text-[11px] text-slate-400 font-medium">${formattedDate} • ${readTime} min read</span>
-                                <button onclick="window.deleteNote('${note.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-[11px] text-slate-400 font-medium mr-1">${formattedDate} • ${readTime} min read</span>
+                                <button onclick="window.openEditModal('${note.id}')" class="text-slate-400 hover:text-slate-700 text-xs font-semibold px-1.5 py-0.5 rounded hover:bg-slate-200 transition-colors cursor-pointer" title="edit note">
+                                    edit
+                                </button>
+                                <button onclick="window.deleteNote('${note.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-colors" title="delete note">
                                     ✕
                                 </button>
                             </div>
@@ -335,7 +401,22 @@
             updateMergeToolbar();
         }
 
-        // --- MERGE SELECTION CONTROLS ---
+        // --- EDIT MODAL HANDLERS ---
+        window.openEditModal = function(id) {
+            const note = globalNotesCache.find(n => String(n.id) === String(id));
+            if (!note) return;
+
+            $('edit-note-id').value = note.id;
+            $('edit-note-title').value = note.title || '';
+            $('edit-note-content').value = note.raw_content || '';
+            $('edit-modal')?.classList.remove('hidden');
+        };
+
+        window.closeEditModal = function() {
+            $('edit-modal')?.classList.add('hidden');
+        };
+
+        // --- SELECTION & MERGE HANDLERS ---
         window.toggleSelectNote = function(id) {
             const strId = String(id);
             if (selectedNoteIds.has(strId)) {
@@ -363,7 +444,6 @@
             }
         }
 
-        // --- MERGE LOGIC ---
         window.mergeSelectedNotes = async function() {
             if (selectedNoteIds.size < 2) {
                 alert('select at least 2 notes to merge.');
@@ -371,8 +451,6 @@
             }
 
             const notesToMerge = globalNotesCache.filter(n => selectedNoteIds.has(String(n.id)));
-            
-            // Concatenate raw content cleanly
             const mergedContent = notesToMerge.map(n => `--- ${n.title} ---\n${n.raw_content}`).join('\n\n');
             const mergedTitle = `merged: ${notesToMerge[0].title} + ${notesToMerge.length - 1} more`;
 
@@ -386,7 +464,6 @@
                     tags: Array.from(new Set(notesToMerge.flatMap(n => n.tags || [])))
                 };
 
-                // Insert new merged note
                 const { data, error } = await supabase
                     .from('notes')
                     .insert([newMergedObj])
@@ -394,7 +471,6 @@
 
                 if (error) throw error;
 
-                // Delete original merged notes
                 const idsToDelete = Array.from(selectedNoteIds);
                 await supabase.from('notes').delete().in('id', idsToDelete);
 
@@ -410,13 +486,13 @@
             }
         };
 
-        // --- DELETE NOTE ---
+        // --- DELETE HANDLER ---
         window.deleteNote = async function(id) {
             try {
                 const { error } = await supabase.from('notes').delete().eq('id', id);
                 if (error) throw error;
 
-                globalNotesCache = globalNotesCache.filter(n => n.id != id);
+                globalNotesCache = globalNotesCache.filter(n => String(n.id) !== String(id));
                 selectedNoteIds.delete(String(id));
                 renderNotes();
             } catch (err) {
