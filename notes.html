@@ -287,7 +287,7 @@
             if (apiKey && allowAi) {
                 try {
                     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-                    const prompt = `Analyze this unformatted note. Return a JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
+                    const prompt = `Analyse this unformatted note. Return a JSON object with keys, writing in british english: "title" (short topic), "summary" (summary in as few words as possible), "tags" (array of keywords). Content: "${content}"`;
         
                     const response = await fetch(endpoint, {
                         method: 'POST',
