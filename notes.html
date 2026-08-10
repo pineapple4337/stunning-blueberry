@@ -287,8 +287,7 @@
             if (apiKey && allowAi) {
                 try {
                     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-                    const prompt = `Analyse this unformatted note. Return a JSON object with keys, writing in british english: "title" (short topic), "summary" (summary in as few words as possible), "tags" (array of keywords). Content: "${content}"`;
-        
+                    
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 
@@ -296,7 +295,14 @@
                             'x-goog-api-key': apiKey
                         },
                         body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }] }],
+                            // System instruction sets the behavior once
+                            systemInstruction: {
+                                parts: [{ text: "Extract facts in UK English. Max 10-word summary. Direct facts only. No meta-talk like 'this note...'." }]
+                            },
+                            contents: [{ 
+                                // Minimal prompt payload
+                                parts: [{ text: content }] 
+                            }],
                             generationConfig: {
                                 responseMimeType: "application/json",
                                 responseSchema: {
@@ -304,10 +310,7 @@
                                     properties: {
                                         title: { type: "STRING" },
                                         summary: { type: "STRING" },
-                                        tags: { 
-                                            type: "ARRAY", 
-                                            items: { type: "STRING" } 
-                                        }
+                                        tags: { type: "ARRAY", items: { type: "STRING" } }
                                     },
                                     required: ["title", "summary", "tags"]
                                 }
