@@ -3,57 +3,421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>task list</title>
-    <!-- Tailwind CSS V4 -->
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <title>task manager</title>
+    <!-- tailwind css cdn -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- supabase js sdk -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        /* import inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        /* global font reset and lowercase enforcement */
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            text-transform: lowercase !important;
+        }
+
+        body { 
+            color: var(--text-main);
+            background-color: var(--bg-main) !important;
+            background-image: none !important;
+            font-size: 0.95rem;
+            letter-spacing: normal;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4, h5, h6, button, input, select, textarea, option, span, p, td, th {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+
+        /* modern category badges */
+        .cat-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.375rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .cat-food { background-color: #fef2f2 !important; color: #991b1b !important; }
+        .cat-shopping { background-color: #eef2ff !important; color: #3730a3 !important; }
+        .cat-subscriptions { background-color: #f0f9ff !important; color: #075985 !important; }
+        .cat-events { background-color: #f0fdf4 !important; color: #166534 !important; }
+        .cat-fees { background-color: #fffbeb !important; color: #92400e !important; }
+        .cat-health { background-color: #fdf2f8 !important; color: #9d174d !important; }
+        .cat-transport { background-color: #ecfeff !important; color: #155e75 !important; }
+        .cat-default { background-color: #f1f5f9 !important; color: #334155 !important; }
+
+        /* card container */
+        .glass-card {
+            background: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+            border-radius: 12px !important;
+        }
+
+        /* inputs & interactive elements */
+        input, select, textarea {
+            background-color: #ffffff !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+            border-radius: 8px !important;
+            font-size: 0.875rem !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 font-sans antialiased p-4 md:p-8">
+<body class="min-h-screen pb-12">
 
-    <div class="max-w-3xl mx-auto space-y-6">
-        
-        <!-- Navigation / Header -->
-        <header class="flex items-center justify-between bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
-            <div>
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 lowercase">task list 📝</h1>
-                <p class="text-xs text-gray-400 font-medium lowercase">manage your pending tasks</p>
+    <!-- HEADER / NAV -->
+    <header class="glass-card sticky top-0 z-20 mx-4 mt-4">
+        <div class="max-w-2xl mx-auto px-6 py-3.5 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900">task manager</h1>
+            <div class="flex gap-2">
+                <a href="index.html" class="px-3.5 py-1.5 text-slate-600 hover:text-slate-900 text-sm font-semibold rounded-lg transition-colors">expenses</a>
+                <a href="tasks.html" class="px-3.5 py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg">tasks</a>
             </div>
-            <a href="index.html" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all lowercase">
-                ← back to tracker
-            </a>
-            <select id="category-filter-select" class="px-2 py-1 text-xs bg-gray-50 border border-gray-100 rounded-xl lowercase focus:outline-none text-gray-600 font-semibold cursor-pointer">
-                <option value="all">all categories</option>
-                <option value="food & drink">🍔 food & drink</option>
-                <option value="shopping">🛍️ shopping</option>
-                <option value="subscriptions">📺 subscriptions</option>
-                <option value="events">🎟️ events</option>
-                <option value="fees">💵 fees</option>
-                <option value="health">💊 health</option>
-                <option value="transport">🚌 transport</option>
-            </select>
-        </header>
+        </div>
+    </header>
 
-        <!-- Add Task Form -->
-        <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
-            <form id="task-form" class="flex gap-3">
-                <input type="text" id="task-input" required placeholder="add new task..." class="flex-1 px-4 py-2.5 text-xs bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-purple-500 font-medium lowercase">
-                <button type="submit" class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer lowercase">
+    <main class="max-w-2xl mx-auto px-6 pt-6 space-y-6">
+
+        <!-- TASK STATS & SUMMARY PILLS -->
+        <div class="glass-card p-4 flex justify-between items-center gap-2">
+            <div class="flex gap-2 flex-wrap">
+                <span class="text-xs font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
+                    total: <strong id="stat-total-count" class="text-slate-900">0</strong>
+                </span>
+                <span class="text-xs font-semibold bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
+                    pending: <strong id="stat-pending-count" class="text-amber-800">0</strong>
+                </span>
+                <span class="text-xs font-semibold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">
+                    completed: <strong id="stat-completed-count" class="text-emerald-800">0</strong>
+                </span>
+            </div>
+            <button id="clear-completed-btn" class="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors cursor-pointer hidden">
+                clear completed
+            </button>
+        </div>
+
+        <!-- ADD NEW TASK FORM -->
+        <div class="glass-card p-6 space-y-4">
+            <h2 class="text-xs font-semibold text-slate-500 tracking-wider">add new task</h2>
+            <form id="task-form" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input type="text" id="task-input" placeholder="what needs to be done?" required class="sm:col-span-2 px-3.5 py-2">
+                    <select id="task-category" class="px-3.5 py-2">
+                        <option value="general">general</option>
+                        <option value="food & drink">food & drink</option>
+                        <option value="shopping">shopping</option>
+                        <option value="subscriptions">subscriptions</option>
+                        <option value="events">events</option>
+                        <option value="fees">fees</option>
+                        <option value="health">health</option>
+                        <option value="transport">transport</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer">
                     add task
                 </button>
             </form>
         </div>
 
-        <!-- Task List Container -->
-        <div class="bg-white p-6 rounded-3xl shadow-xs border border-gray-100">
-            <ul id="task-list" class="divide-y divide-gray-100">
-                <li class="py-4 text-center text-xs text-gray-400 lowercase">loading tasks...</li>
+        <!-- FILTERS & TASK LIST -->
+        <div class="glass-card p-6 space-y-4">
+            <!-- Filter Bar -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
+                <!-- Status Tabs -->
+                <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
+                    <button id="tab-all" onclick="window.setFilterStatus('all')" class="px-3 py-1 rounded-md bg-white text-slate-900 shadow-xs cursor-pointer">all</button>
+                    <button id="tab-pending" onclick="window.setFilterStatus('pending')" class="px-3 py-1 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer">pending</button>
+                    <button id="tab-completed" onclick="window.setFilterStatus('completed')" class="px-3 py-1 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer">completed</button>
+                </div>
+
+                <!-- Category Filter -->
+                <select id="category-filter-select" class="px-3 py-1 text-xs font-semibold cursor-pointer w-full sm:w-auto">
+                    <option value="all">all categories</option>
+                    <option value="general">general</option>
+                    <option value="food & drink">food & drink</option>
+                    <option value="shopping">shopping</option>
+                    <option value="subscriptions">subscriptions</option>
+                    <option value="events">events</option>
+                    <option value="fees">fees</option>
+                    <option value="health">health</option>
+                    <option value="transport">transport</option>
+                </select>
+            </div>
+
+            <!-- Task List Container -->
+            <ul id="task-list" class="divide-y divide-slate-100">
+                <li class="py-6 text-center text-xs text-slate-400">loading tasks...</li>
             </ul>
         </div>
 
-    </div>
+    </main>
 
-    <!-- ES Module Script Import -->
-    <script type="module" src="tasks.js"></script>
+    <script type="module">
+        import { APP_CONFIG } from './config.js';
+
+        // --- SUPABASE CLIENT INITIALIZATION ---
+        const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+
+        // --- DOM HELPER ---
+        const $ = (id) => document.getElementById(id);
+
+        // --- GLOBAL STATE ---
+        let globalTasksCache = [];
+        let activeStatusFilter = 'all';
+        let activeCategoryFilter = 'all';
+
+        // --- CATEGORY BADGE STYLES ---
+        const CATEGORY_STYLES = {
+            'food & drink': 'cat-food',
+            'shopping': 'cat-shopping',
+            'subscriptions': 'cat-subscriptions',
+            'events': 'cat-events',
+            'fees': 'cat-fees',
+            'health': 'cat-health',
+            'transport': 'cat-transport',
+            'general': 'cat-default'
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            fetchTasks();
+        });
+
+        function setupEventListeners() {
+            // Add Task
+            $('task-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const input = $('task-input');
+                const categorySelect = $('task-category');
+                
+                const title = input.value.trim().toLowerCase();
+                const category = (categorySelect?.value || 'general').toLowerCase();
+
+                if (!title) return;
+
+                try {
+                    const newTaskObj = { title, is_complete: false, category };
+                    
+                    const { data, error } = await supabase
+                        .from('todos')
+                        .insert([newTaskObj])
+                        .select();
+
+                    if (error) {
+                        // Fallback if category column doesn't exist in user DB table schema
+                        const { data: fallbackData, error: fallbackError } = await supabase
+                            .from('todos')
+                            .insert([{ title, is_complete: false }])
+                            .select();
+                        if (fallbackError) throw fallbackError;
+                        if (fallbackData) globalTasksCache.unshift(fallbackData[0]);
+                    } else if (data) {
+                        globalTasksCache.unshift(data[0]);
+                    }
+
+                    input.value = '';
+                    renderTasks();
+                } catch (err) {
+                    console.error('failed to add task:', err.message);
+                }
+            });
+
+            // Category Filter Dropdown
+            $('category-filter-select')?.addEventListener('change', (e) => {
+                activeCategoryFilter = e.target.value.toLowerCase();
+                renderTasks();
+            });
+
+            // Clear Completed Tasks
+            $('clear-completed-btn')?.addEventListener('click', async () => {
+                const completedIds = globalTasksCache.filter(t => t.is_complete).map(t => t.id);
+                if (completedIds.length === 0) return;
+
+                try {
+                    const { error } = await supabase
+                        .from('todos')
+                        .delete()
+                        .in('id', completedIds);
+
+                    if (error) throw error;
+
+                    globalTasksCache = globalTasksCache.filter(t => !t.is_complete);
+                    renderTasks();
+                } catch (err) {
+                    console.error('failed to clear completed tasks:', err.message);
+                }
+            });
+        }
+
+        // --- FETCH TASKS ---
+        async function fetchTasks() {
+            const list = $('task-list');
+            if (!list) return;
+
+            try {
+                const { data: todos, error } = await supabase
+                    .from('todos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                globalTasksCache = todos || [];
+                renderTasks();
+            } catch (err) {
+                console.error('failed to fetch tasks:', err.message);
+                list.innerHTML = `<li class="py-6 text-center text-xs text-red-400">error loading tasks</li>`;
+            }
+        }
+
+        // --- RENDER TASKS & STATS ---
+        function renderTasks() {
+            const list = $('task-list');
+            if (!list) return;
+
+            // Calculate Stats
+            const totalCount = globalTasksCache.length;
+            const completedCount = globalTasksCache.filter(t => t.is_complete).length;
+            const pendingCount = totalCount - completedCount;
+
+            if ($('stat-total-count')) $('stat-total-count').textContent = totalCount;
+            if ($('stat-pending-count')) $('stat-pending-count').textContent = pendingCount;
+            if ($('stat-completed-count')) $('stat-completed-count').textContent = completedCount;
+
+            // Toggle Clear Completed Button
+            const clearBtn = $('clear-completed-btn');
+            if (clearBtn) {
+                if (completedCount > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+
+            // Filter Logic
+            const filtered = globalTasksCache.filter(task => {
+                const matchesStatus = 
+                    activeStatusFilter === 'all' ||
+                    (activeStatusFilter === 'pending' && !task.is_complete) ||
+                    (activeStatusFilter === 'completed' && task.is_complete);
+
+                const taskCat = (task.category || 'general').toLowerCase();
+                const matchesCategory = activeCategoryFilter === 'all' || taskCat === activeCategoryFilter;
+
+                return matchesStatus && matchesCategory;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<li class="py-8 text-center text-xs text-slate-400">no tasks found</li>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(todo => {
+                const dateObj = new Date(todo.created_at || Date.now());
+                const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                const catKey = (todo.category || 'general').toLowerCase();
+                const badgeClass = CATEGORY_STYLES[catKey] || 'cat-default';
+
+                return `
+                    <li class="py-3 flex items-center justify-between gap-3 group transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <input type="checkbox" ${todo.is_complete ? 'checked' : ''} 
+                                onchange="window.toggleTask('${todo.id}', ${!todo.is_complete})"
+                                class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0">
+                            <span class="cat-badge ${badgeClass} shrink-0">${todo.category || 'general'}</span>
+                            <span class="text-xs font-semibold truncate ${todo.is_complete ? 'line-through text-slate-300' : 'text-slate-800'}">
+                                ${todo.title}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span class="text-[11px] text-slate-400 font-medium">${formattedDate}</span>
+                            <button onclick="window.deleteTask('${todo.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                                ✕
+                            </button>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        // --- FILTER STATUS TOGGLE ---
+        window.setFilterStatus = function(status) {
+            activeStatusFilter = status;
+            
+            ['all', 'pending', 'completed'].forEach(s => {
+                const btn = $(`tab-${s}`);
+                if (btn) {
+                    if (s === status) {
+                        btn.className = "px-3 py-1 rounded-md bg-white text-slate-900 shadow-xs cursor-pointer";
+                    } else {
+                        btn.className = "px-3 py-1 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer";
+                    }
+                }
+            });
+
+            renderTasks();
+        };
+
+        // --- TASK ACTIONS ---
+        window.toggleTask = async function(id, is_complete) {
+            try {
+                const { error } = await supabase
+                    .from('todos')
+                    .update({ is_complete })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                const index = globalTasksCache.findIndex(t => t.id == id);
+                if (index !== -1) {
+                    globalTasksCache[index].is_complete = is_complete;
+                }
+
+                renderTasks();
+            } catch (err) {
+                console.error('failed to update task:', err.message);
+            }
+        };
+
+        window.deleteTask = async function(id) {
+            try {
+                const { error } = await supabase
+                    .from('todos')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                globalTasksCache = globalTasksCache.filter(t => t.id != id);
+                renderTasks();
+            } catch (err) {
+                console.error('failed to delete task:', err.message);
+            }
+        };
+    </script>
 </body>
 </html>
