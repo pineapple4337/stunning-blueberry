@@ -177,6 +177,37 @@
 
     </main>
 
+    <!-- EDIT TASK MODAL -->
+    <div id="edit-task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card w-full max-w-md p-6 space-y-4 bg-white">
+            <h3 class="text-base font-bold text-slate-900">edit task</h3>
+            <form id="edit-task-form" class="space-y-3">
+                <input type="hidden" id="edit-task-id">
+                <div>
+                    <label class="text-xs font-semibold text-slate-500 tracking-wider block mb-1">task description</label>
+                    <input type="text" id="edit-task-title" required class="w-full px-3.5 py-2">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-500 tracking-wider block mb-1">category</label>
+                    <select id="edit-task-category" class="w-full px-3.5 py-2">
+                        <option value="general">general</option>
+                        <option value="food & drink">food & drink</option>
+                        <option value="shopping">shopping</option>
+                        <option value="subscriptions">subscriptions</option>
+                        <option value="events">events</option>
+                        <option value="fees">fees</option>
+                        <option value="health">health</option>
+                        <option value="transport">transport</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="cancel-edit-task-btn" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-all cursor-pointer">cancel</button>
+                    <button type="submit" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer">save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         import { APP_CONFIG } from './config.js';
 
@@ -230,7 +261,6 @@
                         .select();
 
                     if (error) {
-                        // Fallback if category column doesn't exist in user DB table schema
                         const { data: fallbackData, error: fallbackError } = await supabase
                             .from('todos')
                             .insert([{ title, is_complete: false }])
@@ -245,6 +275,44 @@
                     renderTasks();
                 } catch (err) {
                     console.error('failed to add task:', err.message);
+                }
+            });
+
+            // Edit Task Submission
+            $('edit-task-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = $('edit-task-id').value;
+                const title = $('edit-task-title').value.trim().toLowerCase();
+                const category = $('edit-task-category').value.toLowerCase();
+
+                if (!title) return;
+
+                try {
+                    const updateObj = { title, category };
+
+                    let { error } = await supabase
+                        .from('todos')
+                        .update(updateObj)
+                        .eq('id', id);
+
+                    if (error) {
+                        const { error: fallbackError } = await supabase
+                            .from('todos')
+                            .update({ title })
+                            .eq('id', id);
+                        if (fallbackError) throw fallbackError;
+                    }
+
+                    const index = globalTasksCache.findIndex(t => t.id == id);
+                    if (index !== -1) {
+                        globalTasksCache[index].title = title;
+                        globalTasksCache[index].category = category;
+                    }
+
+                    renderTasks();
+                    closeTaskModal();
+                } catch (err) {
+                    console.error('failed to update task:', err.message);
                 }
             });
 
@@ -272,6 +340,17 @@
                 } catch (err) {
                     console.error('failed to clear completed tasks:', err.message);
                 }
+            });
+
+            // Close Edit Modal Handlers
+            $('cancel-edit-task-btn')?.addEventListener('click', () => closeTaskModal());
+            
+            $('edit-task-modal')?.addEventListener('click', (e) => {
+                if (e.target === $('edit-task-modal')) closeTaskModal();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeTaskModal();
             });
         }
 
@@ -301,7 +380,6 @@
             const list = $('task-list');
             if (!list) return;
 
-            // Calculate Stats
             const totalCount = globalTasksCache.length;
             const completedCount = globalTasksCache.filter(t => t.is_complete).length;
             const pendingCount = totalCount - completedCount;
@@ -310,14 +388,12 @@
             if ($('stat-pending-count')) $('stat-pending-count').textContent = pendingCount;
             if ($('stat-completed-count')) $('stat-completed-count').textContent = completedCount;
 
-            // Toggle Clear Completed Button
             const clearBtn = $('clear-completed-btn');
             if (clearBtn) {
                 if (completedCount > 0) clearBtn.classList.remove('hidden');
                 else clearBtn.classList.add('hidden');
             }
 
-            // Filter Logic
             const filtered = globalTasksCache.filter(task => {
                 const matchesStatus = 
                     activeStatusFilter === 'all' ||
@@ -344,18 +420,21 @@
 
                 return `
                     <li class="py-3 flex items-center justify-between gap-3 group transition-colors">
-                        <div class="flex items-center gap-3 min-w-0">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
                             <input type="checkbox" ${todo.is_complete ? 'checked' : ''} 
                                 onchange="window.toggleTask('${todo.id}', ${!todo.is_complete})"
                                 class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0">
                             <span class="cat-badge ${badgeClass} shrink-0">${todo.category || 'general'}</span>
-                            <span class="text-xs font-semibold truncate ${todo.is_complete ? 'line-through text-slate-300' : 'text-slate-800'}">
+                            <span onclick="window.openTaskModal('${todo.id}')" title="click to edit" class="text-xs font-semibold truncate hover:text-blue-600 cursor-pointer transition-colors ${todo.is_complete ? 'line-through text-slate-300' : 'text-slate-800'}">
                                 ${todo.title}
                             </span>
                         </div>
-                        <div class="flex items-center gap-3 shrink-0">
-                            <span class="text-[11px] text-slate-400 font-medium">${formattedDate}</span>
-                            <button onclick="window.deleteTask('${todo.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[11px] text-slate-400 font-medium mr-1">${formattedDate}</span>
+                            <button onclick="window.openTaskModal('${todo.id}')" class="text-slate-400 hover:text-blue-600 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="edit task">
+                                ✎
+                            </button>
+                            <button onclick="window.deleteTask('${todo.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="delete task">
                                 ✕
                             </button>
                         </div>
@@ -372,9 +451,9 @@
                 const btn = $(`tab-${s}`);
                 if (btn) {
                     if (s === status) {
-                        btn.className = "px-3 py-1 rounded-md bg-white text-slate-900 shadow-xs cursor-pointer";
+                        btn.className = "px-3.5 py-1 rounded-md bg-white text-slate-900 shadow-xs cursor-pointer";
                     } else {
-                        btn.className = "px-3 py-1 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer";
+                        btn.className = "px-3.5 py-1 rounded-md text-slate-500 hover:text-slate-900 cursor-pointer";
                     }
                 }
             });
@@ -417,6 +496,22 @@
             } catch (err) {
                 console.error('failed to delete task:', err.message);
             }
+        };
+
+        // --- MODAL CONTROLS ---
+        window.openTaskModal = function(id) {
+            const task = globalTasksCache.find(t => t.id == id);
+            if (!task) return;
+
+            $('edit-task-id').value = task.id;
+            $('edit-task-title').value = task.title || '';
+            $('edit-task-category').value = (task.category || 'general').toLowerCase();
+
+            $('edit-task-modal').classList.remove('hidden');
+        };
+
+        window.closeTaskModal = function() {
+            $('edit-task-modal')?.classList.add('hidden');
         };
     </script>
 </body>
