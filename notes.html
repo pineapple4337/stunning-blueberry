@@ -143,6 +143,12 @@
                 <input type="hidden" id="edit-note-id">
                 <input type="text" id="edit-note-title" placeholder="title or topic" class="w-full px-3.5 py-2">
                 <textarea id="edit-note-content" rows="6" required class="w-full px-3.5 py-2.5 text-sm"></textarea>
+                
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="re-summarize-check" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600">
+                    <label for="re-summarize-check" class="text-xs text-slate-500 font-medium cursor-pointer">regenerate ai summary on update (uses api tokens)</label>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">
                         cancel
@@ -195,7 +201,7 @@
                 saveBtn.innerHTML = `<span>processing...</span>`;
 
                 try {
-                    const aiResult = await processNoteContent(rawContent, userTitle);
+                    const aiResult = await processNoteContent(rawContent, userTitle, true);
 
                     const newNoteObj = {
                         title: aiResult.title || userTitle || 'untitled note',
@@ -232,6 +238,7 @@
                 const id = $('edit-note-id').value;
                 const title = $('edit-note-title').value.trim().toLowerCase();
                 const content = $('edit-note-content').value.trim().toLowerCase();
+                const shouldResummarize = $('re-summarize-check')?.checked || false;
                 const updateBtn = $('update-note-btn');
 
                 if (!content || !id) return;
@@ -240,12 +247,13 @@
                 updateBtn.innerText = 'updating...';
 
                 try {
-                    const aiResult = await processNoteContent(content, title);
+                    const existingNote = globalNotesCache.find(n => String(n.id) === String(id));
+                    const aiResult = await processNoteContent(content, title, shouldResummarize);
 
                     const updatedFields = {
                         title: aiResult.title || title || 'untitled note',
                         raw_content: content,
-                        summary: aiResult.summary,
+                        summary: shouldResummarize ? aiResult.summary : (existingNote?.summary || aiResult.summary),
                         tags: aiResult.tags || []
                     };
 
@@ -273,18 +281,21 @@
         }
 
         // --- SMART PARSING ---
-        async function processNoteContent(content, userTitle) {
+        async function processNoteContent(content, userTitle, allowAi = true) {
             const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
 
-            if (apiKey) {
+            if (apiKey && allowAi) {
                 try {
                     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                    const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
+                    const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1 sentence), "tags" (array of keywords). Content: "${content}"`;
 
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                        body: JSON.stringify({ 
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { maxOutputTokens: 150 } // Limits token generation cost
+                        })
                     });
 
                     const data = await response.json();
@@ -408,6 +419,7 @@
             $('edit-note-id').value = note.id;
             $('edit-note-title').value = note.title || '';
             $('edit-note-content').value = note.raw_content || '';
+            if ($('re-summarize-check')) $('re-summarize-check').checked = false;
             $('edit-modal')?.classList.remove('hidden');
         };
 
@@ -454,7 +466,7 @@
             const mergedTitle = `merged: ${notesToMerge[0].title} + ${notesToMerge.length - 1} more`;
 
             try {
-                const aiResult = await processNoteContent(mergedContent, mergedTitle);
+                const aiResult = await processNoteContent(mergedContent, mergedTitle, true);
 
                 const newMergedObj = {
                     title: mergedTitle,
