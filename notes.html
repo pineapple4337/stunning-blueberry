@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>smart notes</title>
+    <!-- tailwind css cdn -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- supabase js sdk -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* import inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        /* global font reset and lowercase enforcement */
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            text-transform: lowercase !important;
+        }
+
+        body { 
+            color: var(--text-main);
+            background-color: var(--bg-main) !important;
+            background-image: none !important;
+            font-size: 0.95rem;
+            letter-spacing: normal;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4, h5, h6, button, input, select, textarea, option, span, p, td, th {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+
+        /* modern category badges */
+        .cat-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.375rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .cat-tag { background-color: #f1f5f9 !important; color: #334155 !important; }
+        .cat-ai { background-color: #eef2ff !important; color: #3730a3 !important; }
+
+        /* card container */
+        .glass-card {
+            background: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+            border-radius: 12px !important;
+        }
+
+        /* inputs & interactive elements */
+        input, select, textarea {
+            background-color: #ffffff !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+            border-radius: 8px !important;
+            font-size: 0.875rem !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- HEADER / NAV -->
+    <header class="glass-card sticky top-0 z-20 mx-4 mt-4">
+        <div class="max-w-2xl mx-auto px-6 py-3.5 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900">smart notes</h1>
+            <div class="flex gap-2">
+                <a href="index.html" class="px-3.5 py-1.5 text-slate-600 hover:text-slate-900 text-sm font-semibold rounded-lg transition-colors">expenses</a>
+                <a href="tasks.html" class="px-3.5 py-1.5 text-slate-600 hover:text-slate-900 text-sm font-semibold rounded-lg transition-colors">tasks</a>
+                <a href="notes.html" class="px-3.5 py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg">notes</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-6 pt-6 space-y-6">
+
+        <!-- GEMINI API KEY INPUT CARD -->
+        <div class="glass-card p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-2">
+                <span class="cat-badge cat-ai">gemini ai</span>
+                <span class="text-xs text-slate-500 font-medium">auto-summarize raw notes</span>
+            </div>
+            <input type="password" id="gemini-api-key" placeholder="paste gemini api key (optional)" class="px-3 py-1.5 w-full sm:w-64 text-xs">
+        </div>
+
+        <!-- ADD NOTE FORM -->
+        <div class="glass-card p-6 space-y-4">
+            <h2 class="text-xs font-semibold text-slate-500 tracking-wider">quick capture</h2>
+            <form id="note-form" class="space-y-3">
+                <input type="text" id="note-title" placeholder="title or topic (optional)" class="w-full px-3.5 py-2">
+                <textarea id="note-content" rows="4" placeholder="dump raw thoughts, quick notes, messy bullets..." required class="w-full px-3.5 py-2.5 text-sm"></textarea>
+                <button type="submit" id="save-note-btn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer flex justify-center items-center gap-2">
+                    <span>save & summarize</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- NOTES LIST -->
+        <div class="glass-card p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h2 class="text-xs font-semibold text-slate-500 tracking-wider">saved notes</h2>
+                <span id="note-count-badge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">0 notes</span>
+            </div>
+            
+            <div id="notes-list" class="space-y-4">
+                <p class="py-6 text-center text-xs text-slate-400">loading notes...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <script type="module">
+        import { APP_CONFIG } from './config.js';
+
+        // --- SUPABASE CLIENT INITIALIZATION ---
+        const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+
+        // --- DOM HELPER ---
+        const $ = (id) => document.getElementById(id);
+
+        // --- GLOBAL STATE ---
+        let globalNotesCache = [];
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            fetchNotes();
+            
+            // Load cached API key if previously entered
+            const savedKey = localStorage.getItem('gemini_key');
+            if (savedKey && $('gemini-api-key')) {
+                $('gemini-api-key').value = savedKey;
+            }
+        });
+
+        function setupEventListeners() {
+            // Save API key on change
+            $('gemini-api-key')?.addEventListener('change', (e) => {
+                localStorage.setItem('gemini_key', e.target.value.trim());
+            });
+
+            // Form Submit
+            $('note-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const titleInput = $('note-title');
+                const contentInput = $('note-content');
+                const saveBtn = $('save-note-btn');
+
+                const rawContent = contentInput.value.trim().toLowerCase();
+                const userTitle = titleInput.value.trim().toLowerCase();
+
+                if (!rawContent) return;
+
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = `<span>processing...</span>`;
+
+                try {
+                    // Call Gemini API to parse and summarize raw note
+                    const aiResult = await processNoteWithAI(rawContent, userTitle);
+
+                    const newNoteObj = {
+                        title: aiResult.title || userTitle || 'untitled note',
+                        raw_content: rawContent,
+                        summary: aiResult.summary,
+                        tags: aiResult.tags || []
+                    };
+
+                    const { data, error } = await supabase
+                        .from('notes')
+                        .insert([newNoteObj])
+                        .select();
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        globalNotesCache.unshift(data[0]);
+                    }
+
+                    titleInput.value = '';
+                    contentInput.value = '';
+                    renderNotes();
+                } catch (err) {
+                    console.error('error saving note:', err.message);
+                    alert('could not save note. ensure "notes" table exists in your supabase database.');
+                } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = `<span>save & summarize</span>`;
+                }
+            });
+        }
+
+        // --- AI SUMMARIZER FUNCTION ---
+        async function processNoteWithAI(content, userTitle) {
+            const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
+
+            if (!apiKey) {
+                // Fallback local heuristic summary if no API key provided
+                const lines = content.split('\n').filter(l => l.trim().length > 0);
+                const title = userTitle || (lines[0] ? lines[0].slice(0, 30) : 'quick note');
+                return {
+                    title: title,
+                    summary: content.length > 100 ? content.slice(0, 100) + '...' : content,
+                    tags: ['general']
+                };
+            }
+
+            try {
+                const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const prompt = `Analyze this unformatted/messy note. Return ONLY a valid JSON object with keys: "title" (short 3-5 word topic), "summary" (1-2 sentences summarizing core takeaways clearly), and "tags" (array of 1-3 simple lowercase category keywords). Note text: "${content}"`;
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+                let textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                
+                // Clean markdown wrapped JSON output
+                textResult = textResult.replace(/```json/gi, '').replace(/```/g, '').trim();
+                
+                const parsed = JSON.parse(textResult);
+                return {
+                    title: userTitle || parsed.title || 'quick note',
+                    summary: parsed.summary || content,
+                    tags: parsed.tags || ['note']
+                };
+            } catch (err) {
+                console.warn('gemini API error, falling back to basic parsing:', err);
+                return {
+                    title: userTitle || 'quick note',
+                    summary: content,
+                    tags: ['raw-note']
+                };
+            }
+        }
+
+        // --- FETCH NOTES ---
+        async function fetchNotes() {
+            const list = $('notes-list');
+            if (!list) return;
+
+            try {
+                const { data: notes, error } = await supabase
+                    .from('notes')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                globalNotesCache = notes || [];
+                renderNotes();
+            } catch (err) {
+                console.error('failed to fetch notes:', err.message);
+                list.innerHTML = `<p class="py-6 text-center text-xs text-slate-400">add notes above to get started</p>`;
+            }
+        }
+
+        // --- RENDER NOTES ---
+        function renderNotes() {
+            const list = $('notes-list');
+            const badge = $('note-count-badge');
+            if (!list) return;
+
+            if (badge) badge.textContent = `${globalNotesCache.length} notes`;
+
+            if (globalNotesCache.length === 0) {
+                list.innerHTML = `<p class="py-6 text-center text-xs text-slate-400">no notes recorded yet</p>`;
+                return;
+            }
+
+            list.innerHTML = globalNotesCache.map(note => {
+                const dateObj = new Date(note.created_at || Date.now());
+                const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+                
+                const tagsHtml = (note.tags || []).map(t => `<span class="cat-badge cat-tag mr-1">${t}</span>`).join('');
+
+                return `
+                    <div class="border border-slate-100 rounded-lg p-4 space-y-2 hover:border-slate-200 transition-colors group relative bg-slate-50/50">
+                        <div class="flex justify-between items-start gap-2">
+                            <h3 class="text-sm font-bold text-slate-900">${note.title}</h3>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[11px] text-slate-400 font-medium">${formattedDate}</span>
+                                <button onclick="window.deleteNote('${note.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="delete note">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        ${note.summary ? `<div class="p-2.5 bg-blue-50/60 rounded-md text-xs font-medium text-slate-700 border border-blue-100/50">
+                            <span class="font-bold text-blue-700 block mb-0.5">summary</span>
+                            ${note.summary}
+                        </div>` : ''}
+
+                        <p class="text-xs text-slate-500 font-normal whitespace-pre-wrap leading-relaxed">${note.raw_content}</p>
+
+                        <div class="pt-1 flex items-center justify-between">
+                            <div>${tagsHtml}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- DELETE NOTE ---
+        window.deleteNote = async function(id) {
+            try {
+                const { error } = await supabase
+                    .from('notes')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                globalNotesCache = globalNotesCache.filter(n => n.id != id);
+                renderNotes();
+            } catch (err) {
+                console.error('failed to delete note:', err.message);
+            }
+        };
+    </script>
+</body>
+</html>
