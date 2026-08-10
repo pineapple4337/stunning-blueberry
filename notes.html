@@ -286,13 +286,16 @@
         
             if (apiKey) {
                 try {
-                    // Updated to standard model endpoint
-                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    // Using the native v1beta endpoint
+                    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
                     const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
         
                     const response = await fetch(endpoint, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': apiKey // Pass the AQ... key via header
+                        },
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
                             generationConfig: {
@@ -302,9 +305,9 @@
                     });
         
                     if (!response.ok) {
-                        const errorDetails = await response.text();
-                        console.error('Gemini API Error Response:', errorDetails);
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        const errorText = await response.text();
+                        console.error('Gemini API Error details:', errorText);
+                        throw new Error(`API returned HTTP ${response.status}`);
                     }
         
                     const data = await response.json();
@@ -321,7 +324,7 @@
                 }
             }
         
-            // Fallback parsing logic if key is missing or fails
+            // Local fallback parsing
             const hashtagRegex = /#(\w+)/g;
             const extractedTags = [];
             let match;
