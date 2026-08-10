@@ -281,49 +281,58 @@
         }
 
         // --- SMART PARSING ---
-        async function processNoteContent(content, userTitle, allowAi = true) {
+        async function processNoteContent(content, userTitle) {
             const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
-
-            if (apiKey && allowAi) {
+        
+            if (apiKey) {
                 try {
+                    // Updated to standard model endpoint
                     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                    const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1 sentence), "tags" (array of keywords). Content: "${content}"`;
-
+                    const prompt = `Analyze this unformatted note. Return ONLY a valid JSON object with keys: "title" (short topic), "summary" (1-2 sentence summary), "tags" (array of keywords). Content: "${content}"`;
+        
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
-                            generationConfig: { maxOutputTokens: 150 } // Limits token generation cost
+                            generationConfig: {
+                                responseMimeType: "application/json"
+                            }
                         })
                     });
-
+        
+                    if (!response.ok) {
+                        const errorDetails = await response.text();
+                        console.error('Gemini API Error Response:', errorDetails);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+        
                     const data = await response.json();
-                    let textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    textResult = textResult.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    
-                    const parsed = JSON.parse(textResult);
+                    const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+                    const parsed = typeof textResult === 'string' ? JSON.parse(textResult) : textResult;
+        
                     return {
                         title: userTitle || parsed.title || 'quick note',
                         summary: parsed.summary || content.slice(0, 100),
                         tags: parsed.tags || []
                     };
                 } catch (err) {
-                    console.warn('ai request failed, falling back to local smart parsing:', err);
+                    console.warn('AI request failed, falling back to local parsing:', err);
                 }
             }
-
+        
+            // Fallback parsing logic if key is missing or fails
             const hashtagRegex = /#(\w+)/g;
             const extractedTags = [];
             let match;
             while ((match = hashtagRegex.exec(content)) !== null) {
                 extractedTags.push(match[1].toLowerCase());
             }
-
+        
             const cleanLines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const fallbackTitle = userTitle || (cleanLines[0] ? cleanLines[0].replace(/^#*\s*/, '').slice(0, 35) : 'untitled note');
             const localSummary = cleanLines.join(' ').slice(0, 120) + (content.length > 120 ? '...' : '');
-
+        
             return {
                 title: fallbackTitle,
                 summary: localSummary,
