@@ -271,13 +271,13 @@ function renderExpenses() {
     let totals = {}, totalAll = 0;
     
     const activeCatMap = CATEGORY_MAP || {
-        'food & drink': { barColor: 'bg-blue-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'shopping': { barColor: 'bg-indigo-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'subscriptions': { barColor: 'bg-sky-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'events': { barColor: 'bg-teal-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'fees': { barColor: 'bg-amber-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'health': { barColor: 'bg-emerald-600', badgeColor: 'bg-slate-100 text-slate-800' },
-        'transport': { barColor: 'bg-cyan-600', badgeColor: 'bg-slate-100 text-slate-800' }
+        'food & drink': { barClass: 'bar-food', badgeClass: 'cat-food' },
+        'shopping': { barClass: 'bar-shopping', badgeClass: 'cat-shopping' },
+        'subscriptions': { barClass: 'bar-subscriptions', badgeClass: 'cat-subscriptions' },
+        'events': { barClass: 'bar-events', badgeClass: 'cat-events' },
+        'fees': { barClass: 'bar-fees', badgeClass: 'cat-fees' },
+        'health': { barClass: 'bar-health', badgeClass: 'cat-health' },
+        'transport': { barClass: 'bar-transport', badgeClass: 'cat-transport' }
     };
 
     Object.keys(activeCatMap).forEach(k => totals[k] = 0);
@@ -312,7 +312,7 @@ function renderExpenses() {
         if (!sum) return;
         hasEntries = true;
         const pct = totalAll ? (sum / totalAll) * 100 : 0;
-        const meta = activeCatMap[cat] || { barColor: 'bg-blue-600' };
+        const meta = activeCatMap[cat] || { barClass: 'bar-default' };
 
         stats.appendChild(Object.assign(document.createElement('div'), {
             className: "text-xs font-semibold",
@@ -321,7 +321,7 @@ function renderExpenses() {
                 <span class="text-slate-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
             </div>
             <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div class="${meta.barColor || 'bg-blue-600'} h-full transition-all duration-300" style="width: ${pct}%"></div>
+                <div class="${meta.barClass || 'bar-default'} h-full transition-all duration-300" style="width: ${pct}%"></div>
             </div>`
         }));
     });
@@ -396,14 +396,22 @@ function renderExpandedLedger() {
     } else {
         active.forEach(exp => {
             const catKey = (exp.category || '').toLowerCase();
-            const meta = (CATEGORY_MAP && CATEGORY_MAP[catKey]) || { badgeColor: 'bg-slate-100 text-slate-700' };
-            const badgeClass = meta.badgeColor || 'bg-slate-100 text-slate-700';
+            const badgeClassMap = {
+                'food & drink': 'cat-food',
+                'shopping': 'cat-shopping',
+                'subscriptions': 'cat-subscriptions',
+                'events': 'cat-events',
+                'fees': 'cat-fees',
+                'health': 'cat-health',
+                'transport': 'cat-transport'
+            };
+            const badgeClass = badgeClassMap[catKey] || 'cat-default';
             const parsedDate = parseEntryDate(exp.date);
             const amt = parseAmount(exp.amount);
 
             tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-slate-50 transition-colors group cursor-pointer">
                 <td class="p-3 pl-5 text-slate-500">${parsedDate.displayStr}</td>
-                <td class="p-3"><span class="inline-flex items-center px-2 py-0.5 rounded-md ${badgeClass} text-xs font-semibold">${exp.category}</span></td>
+                <td class="p-3"><span class="cat-badge ${badgeClass}">${exp.category}</span></td>
                 <td class="p-3 font-semibold text-slate-900">${exp.description}</td>
                 <td class="p-3 text-right pr-5 font-semibold text-slate-900">
                     <div class="flex items-center justify-end gap-2">
