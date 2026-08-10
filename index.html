@@ -6,8 +6,96 @@
     <title>expense tracker</title>
     <!-- tailwind css cdn -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- clean professional stylesheet -->
-    <link rel="stylesheet" href="styles.css">
+    <!-- supabase js sdk -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* import inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        /* global font reset and lowercase enforcement */
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            text-transform: lowercase !important;
+        }
+
+        body { 
+            color: var(--text-main);
+            background-color: var(--bg-main) !important;
+            background-image: none !important;
+            font-size: 0.95rem;
+            letter-spacing: normal;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4, h5, h6, button, input, select, textarea, option, span, p, td, th {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+
+        /* modern category badges */
+        .cat-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .cat-food { background-color: #fef2f2 !important; color: #991b1b !important; }
+        .cat-shopping { background-color: #eef2ff !important; color: #3730a3 !important; }
+        .cat-subscriptions { background-color: #f0f9ff !important; color: #075985 !important; }
+        .cat-events { background-color: #f0fdf4 !important; color: #166534 !important; }
+        .cat-fees { background-color: #fffbeb !important; color: #92400e !important; }
+        .cat-health { background-color: #fdf2f8 !important; color: #9d174d !important; }
+        .cat-transport { background-color: #ecfeff !important; color: #155e75 !important; }
+        .cat-default { background-color: #f1f5f9 !important; color: #334155 !important; }
+
+        /* modern bar fills */
+        .bar-food { background-color: #ef4444 !important; }
+        .bar-shopping { background-color: #6366f1 !important; }
+        .bar-subscriptions { background-color: #0284c7 !important; }
+        .bar-events { background-color: #22c55e !important; }
+        .bar-fees { background-color: #f59e0b !important; }
+        .bar-health { background-color: #ec4899 !important; }
+        .bar-transport { background-color: #06b6d4 !important; }
+        .bar-default { background-color: #3b82f6 !important; }
+
+        /* card container */
+        .glass-card {
+            background: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+            border-radius: 12px !important;
+        }
+
+        /* inputs & interactive elements */
+        input, select, textarea {
+            background-color: #ffffff !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+            border-radius: 8px !important;
+            font-size: 0.875rem !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
 <body class="min-h-screen pb-12">
 
@@ -163,8 +251,449 @@
         </div>
     </div>
 
-    <!-- SUPABASE JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="app.js"></script>
+    <script type="module">
+        import { APP_CONFIG } from './config.js';
+
+        // --- SUPABASE CLIENT INITIALIZATION ---
+        const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+
+        // --- DOM HELPER ---
+        const $ = (id) => document.getElementById(id);
+
+        // --- GLOBAL STATE ---
+        let globalExpensesCache = [];
+        let displayDate = new Date();
+        let selectedCategoryFilter = 'all';
+
+        // --- CATEGORY STYLE CONFIGURATION ---
+        const CATEGORY_STYLES = {
+            'food & drink': { barClass: 'bar-food', badgeClass: 'cat-food' },
+            'shopping': { barClass: 'bar-shopping', badgeClass: 'cat-shopping' },
+            'subscriptions': { barClass: 'bar-subscriptions', badgeClass: 'cat-subscriptions' },
+            'events': { barClass: 'bar-events', badgeClass: 'cat-events' },
+            'fees': { barClass: 'bar-fees', badgeClass: 'cat-fees' },
+            'health': { barClass: 'bar-health', badgeClass: 'cat-health' },
+            'transport': { barClass: 'bar-transport', badgeClass: 'cat-transport' }
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initDefaultDate();
+            setupEventListeners();
+            fetchExpensesFromSupabase();
+        });
+
+        function initDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            if ($('expense-date'))$('expense-date').value = today;
+            updateMonthDisplay();
+        }
+
+        function updateMonthDisplay() {
+            const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+            if ($('current-month-display')) {$('current-month-display').textContent = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
+            }
+        }
+
+        function resetCategoryFilter() {
+            selectedCategoryFilter = 'all';
+            const select = $('category-filter-select');
+            if (select) select.value = 'all';
+        }
+
+        function parseAmount(val) {
+            if (val === null || val === undefined) return 0;
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            const cleaned = String(val).replace(/[^0-9.-]/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        function parseEntryDate(dateStr) {
+            if (!dateStr) return { year: null, month: null, displayStr: '01/01/1970', isoDate: '' };
+            
+            let y, m, d;
+            const str = String(dateStr).trim();
+            
+            if (str.includes('/')) {
+                const parts = str.split('/');
+                if (parts.length === 3) {
+                    d = parts[0].padStart(2, '0');
+                    m = parts[1].padStart(2, '0');
+                    y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                }
+            } else if (str.includes('-')) {
+                const cleanStr = str.split('T')[0];
+                const parts = cleanStr.split('-');
+                if (parts.length === 3) {
+                    y = parts[0];
+                    m = parts[1].padStart(2, '0');
+                    d = parts[2].padStart(2, '0');
+                }
+            }
+
+            if (y && m && d) {
+                return {
+                    year: parseInt(y, 10),
+                    month: parseInt(m, 10),
+                    isoDate: `${y}-${m}-${d}`,
+                    displayStr: `${d}/${m}/${y}`
+                };
+            }
+
+            return { year: null, month: null, displayStr: str, isoDate: str };
+        }
+
+        async function fetchExpensesFromSupabase() {
+            if (!supabase) {
+                console.error("supabase client not initialized.");
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .order('date', { ascending: false });
+
+                if (error) throw error;
+
+                globalExpensesCache = data || [];
+                renderExpenses();
+            } catch (err) {
+                console.error("error fetching expenses from supabase:", err.message);
+            }
+        }
+
+        function setupEventListeners() {
+            $('expense-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newExpense = {
+                    description: $('expense-desc').value.toLowerCase(),
+                    amount: parseAmount($('expense-amount').value),
+                    date: $('expense-date').value,
+                    category: $('expense-category').value.toLowerCase()
+                };
+
+                try {
+                    const { data, error } = await supabase
+                        .from('expenses')
+                        .insert([newExpense])
+                        .select();
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        globalExpensesCache.unshift(data[0]);
+                    }
+                    
+                    renderExpenses();
+                    $('expense-form').reset();
+                    initDefaultDate();
+                } catch (err) {
+                    console.error("failed to add expense:", err.message);
+                }
+            });
+
+            $('category-filter-select')?.addEventListener('change', (e) => {
+                selectedCategoryFilter = e.target.value.toLowerCase();
+                renderExpenses();
+            });
+
+            $('import-json-btn')?.addEventListener('click', async () => {
+                let rawText = $('json-text-input')?.value?.trim();
+
+                if (!rawText) {
+                    alert('please paste text into the box first!');
+                    return;
+                }
+
+                if (rawText.startsWith('```')) {
+                    rawText = rawText.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+                }
+
+                try {
+                    const parsed = JSON.parse(rawText);
+
+                    if (!Array.isArray(parsed) || parsed.length === 0) {
+                        alert('json must be a non-empty list/array of items.');
+                        return;
+                    }
+
+                    const formattedEntries = parsed.map(item => {
+                        let date = item.date;
+                        if (date && date.includes('/')) {
+                            const [d, m, y] = date.split('/');
+                            date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                        }
+
+                        return {
+                            date: date,
+                            category: (item.category || 'shopping').toLowerCase().trim(),
+                            amount: parseAmount(item.amount),
+                            description: (item.description || 'expense').toLowerCase().trim()
+                        };
+                    });
+
+                    const { error } = await supabase
+                        .from('expenses')
+                        .insert(formattedEntries)
+                        .select();
+
+                    if (error) throw error;
+
+                    alert(`successfully imported ${formattedEntries.length} entries!`);
+                    $('json-text-input').value = '';
+                    
+                    await fetchExpensesFromSupabase();
+
+                } catch (err) {
+                    console.error("json import error:", err);
+                    alert(`could not parse json. error: ${err.message}`);
+                }
+            });
+
+            $('edit-expense-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = $('edit-expense-id').value;
+                const updatedFields = {
+                    description: $('edit-expense-desc').value.toLowerCase(),
+                    amount: parseAmount($('edit-expense-amount').value),
+                    date: $('edit-expense-date').value,
+                    category: $('edit-expense-category').value.toLowerCase()
+                };
+
+                try {
+                    const { error } = await supabase
+                        .from('expenses')
+                        .update(updatedFields)
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    const index = globalExpensesCache.findIndex(e => e.id == id);
+                    if (index !== -1) {
+                        globalExpensesCache[index] = { ...globalExpensesCache[index], ...updatedFields };
+                    }
+
+                    renderExpenses();
+                    closeExpenseModal();
+                } catch (err) {
+                    console.error("failed to update expense:", err.message);
+                }
+            });
+
+            $('prev-month-btn')?.addEventListener('click', () => {
+                resetCategoryFilter();
+                displayDate.setMonth(displayDate.getMonth() - 1);
+                updateMonthDisplay();
+                renderExpenses();
+            });
+
+            $('next-month-btn')?.addEventListener('click', () => {
+                resetCategoryFilter();
+                displayDate.setMonth(displayDate.getMonth() + 1);
+                updateMonthDisplay();
+                renderExpenses();
+            });
+
+            $('open-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
+            $('close-ledger-btn')?.addEventListener('click', () => toggleLedgerFullscreen());
+            $('expanded-ledger-modal')?.addEventListener('click', (e) => {
+                if (e.target === $('expanded-ledger-modal')) toggleLedgerFullscreen();
+            });
+
+            $('cancel-edit-modal-btn')?.addEventListener('click', () => closeExpenseModal());
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
+                        toggleLedgerFullscreen();
+                    }
+                    closeExpenseModal();
+                }
+            });
+        }
+
+        function renderExpenses() {
+            const stats = $('expense-visual-stats');
+            if (!stats) return;
+
+            stats.innerHTML = '';
+            let totals = {}, totalAll = 0;
+
+            Object.keys(CATEGORY_STYLES).forEach(k => totals[k] = 0);
+            
+            const selectedYear = displayDate.getFullYear();
+            const selectedMonth = displayDate.getMonth() + 1;
+
+            const active = globalExpensesCache.filter(e => {
+                const parsed = parseEntryDate(e.date);
+                const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
+                const matchesCat = selectedCategoryFilter === 'all' || 
+                                   (e.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
+                return matchesMonth && matchesCat;
+            });
+
+            active.forEach(e => {
+                const a = parseAmount(e.amount);
+                totalAll += a;
+                const cat = (e.category || '').toLowerCase();
+                if (totals[cat] !== undefined) {
+                    totals[cat] += a;
+                }
+            });
+
+            if ($('month-total-pill')) {
+                $('month-total-pill').textContent = `$${totalAll.toFixed(2)}`;
+            }
+
+            let hasEntries = false;
+
+            Object.entries(totals).forEach(([cat, sum]) => {
+                if (!sum) return;
+                hasEntries = true;
+                const pct = totalAll ? (sum / totalAll) * 100 : 0;
+                const meta = CATEGORY_STYLES[cat] || { barClass: 'bar-default' };
+
+                stats.appendChild(Object.assign(document.createElement('div'), {
+                    className: "text-xs font-semibold",
+                    innerHTML: `<div class="flex justify-between text-slate-700 items-center mb-1">
+                        <span>${cat}</span>
+                        <span class="text-slate-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div class="${meta.barClass} h-full transition-all duration-300" style="width: ${pct}%"></div>
+                    </div>`
+                }));
+            });
+
+            if (!hasEntries) {
+                stats.innerHTML = `<div class="text-xs text-slate-400 text-center py-4">no expense data found</div>`;
+            }
+
+            if (!$('expanded-ledger-modal')?.classList.contains('hidden')) {
+                renderExpandedLedger();
+            }
+        }
+
+        function toggleLedgerFullscreen() {
+            const modal = $('expanded-ledger-modal');
+            if (!modal) return;
+
+            const isHidden = modal.classList.contains('hidden');
+            if (isHidden) {
+                modal.classList.remove('hidden');
+                renderExpandedLedger();
+            } else {
+                modal.classList.add('hidden');
+                resetCategoryFilter();
+                renderExpenses();
+            }
+        }
+        window.toggleLedgerFullscreen = toggleLedgerFullscreen;
+
+        function renderExpandedLedger() {
+            const tableContainer = $('expanded-table-container');
+            const statsContainer = $('expanded-visual-stats');
+            const monthLabel = $('expanded-month-label');
+            const expandedTotal = $('expanded-month-total');
+            if (!tableContainer || !statsContainer) return;
+
+            const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+            if (monthLabel) monthLabel.textContent = `${monthNames[displayDate.getMonth()]} ${displayDate.getFullYear()}`;
+
+            const selectedYear = displayDate.getFullYear();
+            const selectedMonth = displayDate.getMonth() + 1;
+
+            const active = globalExpensesCache.filter(e => {
+                const parsed = parseEntryDate(e.date);
+                const matchesMonth = parsed.year === selectedYear && parsed.month === selectedMonth;
+                const matchesCat = selectedCategoryFilter === 'all' || 
+                                   (e.category || '').toLowerCase() === selectedCategoryFilter.toLowerCase();
+                return matchesMonth && matchesCat;
+            });
+
+            const totalAll = active.reduce((sum, e) => sum + parseAmount(e.amount), 0);
+            if (expandedTotal) {
+                expandedTotal.textContent = `$${totalAll.toFixed(2)}`;
+            }
+
+            statsContainer.innerHTML = $('expense-visual-stats')?.innerHTML || '';
+
+            let tableHtml = `<table class="w-full text-left border-collapse text-xs relative">
+                <thead>
+                    <tr class="bg-slate-50 sticky top-0 border-b border-slate-200 font-semibold text-slate-500 tracking-wider z-10">
+                        <th class="p-3 w-32 pl-5">date</th>
+                        <th class="p-3 w-44">category</th>
+                        <th class="p-3">description</th>
+                        <th class="p-3 w-36 text-right pr-6">amount</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium text-slate-700">`;
+
+            if (active.length === 0) {
+                tableHtml += `<tr><td colspan="4" class="p-8 text-center text-slate-400">no transactions found matching criteria</td></tr>`;
+            } else {
+                active.forEach(exp => {
+                    const catKey = (exp.category || '').toLowerCase();
+                    const meta = CATEGORY_STYLES[catKey] || { badgeClass: 'cat-default' };
+                    const parsedDate = parseEntryDate(exp.date);
+                    const amt = parseAmount(exp.amount);
+
+                    tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-slate-50 transition-colors group cursor-pointer">
+                        <td class="p-3 pl-5 text-slate-500">${parsedDate.displayStr}</td>
+                        <td class="p-3"><span class="cat-badge ${meta.badgeClass}">${exp.category}</span></td>
+                        <td class="p-3 font-semibold text-slate-900">${exp.description}</td>
+                        <td class="p-3 text-right pr-5 font-semibold text-slate-900">
+                            <div class="flex items-center justify-end gap-2">
+                                <span>-$${amt.toFixed(2)}</span>
+                                <button onclick="event.stopPropagation(); window.deleteExpense('${exp.id}')" class="text-slate-300 hover:text-red-500 font-bold p-1 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">✕</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            tableHtml += `</tbody></table>`;
+            tableContainer.innerHTML = tableHtml;
+        }
+
+        window.deleteExpense = async function(id) {
+            try {
+                const { error } = await supabase
+                    .from('expenses')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                globalExpensesCache = globalExpensesCache.filter(e => e.id != id);
+                renderExpenses();
+            } catch (err) {
+                console.error("failed to delete expense:", err.message);
+            }
+        };
+
+        window.openExpenseModal = function(id) {
+            const exp = globalExpensesCache.find(e => e.id == id);
+            if (!exp) return;
+
+            $('edit-expense-id').value = exp.id;
+            $('edit-expense-desc').value = exp.description;
+            $('edit-expense-amount').value = parseAmount(exp.amount);
+            
+            const parsed = parseEntryDate(exp.date);
+            $('edit-expense-date').value = parsed.isoDate || exp.date;
+            
+            $('edit-expense-category').value = exp.category;
+
+            $('edit-expense-modal').classList.remove('hidden');
+        };
+
+        window.closeExpenseModal = function() {
+            $('edit-expense-modal')?.classList.add('hidden');
+        };
+    </script>
 </body>
 </html>
