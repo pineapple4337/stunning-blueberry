@@ -254,50 +254,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { 
-            getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, writeBatch, Timestamp 
+            getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch 
         } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
         import { APP_CONFIG } from './config.js';
 
-        // 1. Ensure updateMonthDisplay runs on load
-        document.addEventListener('DOMContentLoaded', () => {
-            displayDate = new Date(); // Defaults to current date
-            updateMonthDisplay();
-            initDefaultDate();
-            setupEventListeners();
-            fetchExpensesFromFirestore();
-        });
-        
-        // 2. Enhance parseEntryDate to safely handle Firestore Timestamps and strings
-        function parseEntryDate(dateVal) {
-            if (!dateVal) return { year: null, month: null, displayStr: '', isoDate: '' };
-        
-            // Handle Firestore Timestamp object
-            if (typeof dateVal === 'object' && dateVal.seconds !== undefined) {
-                dateVal = new Date(dateVal.seconds * 1000).toISOString().split('T')[0];
-            }
-        
-            const str = String(dateVal).trim().split('T')[0];
-            const parts = str.includes('/') ? str.split('/') : str.split('-');
-        
-            if (parts.length === 3) {
-                // Handle YYYY-MM-DD vs DD/MM/YYYY
-                const isDash = str.includes('-');
-                const y = isDash ? parts[0] : parts[2];
-                const m = parts[1];
-                const d = isDash ? parts[2] : parts[0];
-        
-                return {
-                    year: parseInt(y, 10),
-                    month: parseInt(m, 10),
-                    isoDate: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`,
-                    displayStr: `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
-                };
-            }
-        
-            return { year: null, month: null, displayStr: str, isoDate: str };
-        }
-        
-        
         // --- FIREBASE INITIALIZATION ---
         const app = initializeApp(APP_CONFIG.FIREBASE_CONFIG);
         const db = getFirestore(app);
@@ -305,6 +265,13 @@
 
         // --- DOM HELPER ---
         const $ = (id) => document.getElementById(id);
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
 
         // --- GLOBAL STATE ---
         let globalExpensesCache = [];
@@ -324,13 +291,15 @@
 
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
+            displayDate = new Date();
             initDefaultDate();
             setupEventListeners();
             fetchExpensesFromFirestore();
         });
 
         function initDefaultDate() {
-            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             if ($('expense-date'))$('expense-date').value = today;
             updateMonthDisplay();
         }
@@ -356,14 +325,21 @@
         }
 
         function parseEntryDate(dateVal) {
-            if (!dateVal) return { year: null, month: null, displayStr: '01/01/1970', isoDate: '' };
+            if (!dateVal) return { year: null, month: null, displayStr: '', isoDate: '' };
 
+            // Firestore Timestamp / timestamp-like object.
             if (typeof dateVal === 'object' && dateVal.seconds !== undefined) {
-                dateVal = new Date(dateVal.seconds * 1000).toISOString().split('T')[0];
+                const date = new Date(Number(dateVal.seconds) * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    return { year: y, month: Number(m), isoDate: `${y}-${m}-${d}`, displayStr: `${d}/${m}/${y}` };
+                }
             }
 
+            const str = String(dateVal).trim().split('T')[0];
             let y, m, d;
-            const str = String(dateVal).trim();
 
             if (str.includes('/')) {
                 const parts = str.split('/');
@@ -373,8 +349,7 @@
                     y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
                 }
             } else if (str.includes('-')) {
-                const cleanStr = str.split('T')[0];
-                const parts = cleanStr.split('-');
+                const parts = str.split('-');
                 if (parts.length === 3) {
                     y = parts[0];
                     m = parts[1].padStart(2, '0');
@@ -382,31 +357,37 @@
                 }
             }
 
-            if (y && m && d) {
-                return {
-                    year: parseInt(y, 10),
-                    month: parseInt(m, 10),
-                    isoDate: `${y}-${m}-${d}`,
-                    displayStr: `${d}/${m}/${y}`
-                };
+            if (y && m && d && /^\d{4}$/.test(String(y)) && /^\d{2}$/.test(m) && /^\d{2}$/.test(d)) {
+                return { year: Number(y), month: Number(m), isoDate: `${y}-${m}-${d}`, displayStr: `${d}/${m}/${y}` };
             }
 
-            return { year: null, month: null, displayStr: str, isoDate: str };
+            return { year: null, month: null, displayStr: str, isoDate: '' };
         }
 
         async function fetchExpensesFromFirestore() {
             try {
-                const q = query(expensesCol, orderBy('date', 'desc'));
-                const querySnapshot = await getDocs(q);
+                // Fetch without an orderBy query so the page does not depend on a
+                // Firestore index or on every document having the same date type.
+                const querySnapshot = await getDocs(expensesCol);
 
                 globalExpensesCache = querySnapshot.docs.map(docSnap => ({
                     id: docSnap.id,
                     ...docSnap.data()
                 }));
 
+                globalExpensesCache.sort((a, b) => {
+                    const da = parseEntryDate(a.date).isoDate || '';
+                    const db = parseEntryDate(b.date).isoDate || '';
+                    return db.localeCompare(da);
+                });
+
                 renderExpenses();
             } catch (err) {
-                console.error("error fetching expenses from firestore:", err.message);
+                console.error("error fetching expenses from firestore:", err);
+                const stats = $('expense-visual-stats');
+                if (stats) {
+                    stats.innerHTML = `<div class="text-xs text-red-500 text-center py-4">could not load expenses. check the browser console for details.</div>`;
+                }
             }
         }
 
@@ -461,14 +442,16 @@
 
                     parsed.forEach(item => {
                         let date = item.date;
-                        if (date && date.includes('/')) {
-                            const [d, m, y] = date.split('/');
-                            date = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                        if (date) {
+                            date = parseEntryDate(date).isoDate || String(date).trim();
                         }
 
                         const newDocRef = doc(expensesCol);
                         batch.set(newDocRef, {
-                            date: date || new Date().toISOString().split('T')[0],
+                            date: date || (() => {
+                                const d = new Date();
+                                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            })(),
                             category: (item.category || 'shopping').toLowerCase().trim(),
                             amount: parseAmount(item.amount),
                             description: (item.description || 'expense').toLowerCase().trim()
@@ -516,14 +499,14 @@
 
             $('prev-month-btn')?.addEventListener('click', () => {
                 resetCategoryFilter();
-                displayDate.setMonth(displayDate.getMonth() - 1);
+                displayDate = new Date(displayDate.getFullYear(), displayDate.getMonth() - 1, 1);
                 updateMonthDisplay();
                 renderExpenses();
             });
 
             $('next-month-btn')?.addEventListener('click', () => {
                 resetCategoryFilter();
-                displayDate.setMonth(displayDate.getMonth() + 1);
+                displayDate = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 1);
                 updateMonthDisplay();
                 renderExpenses();
             });
@@ -595,7 +578,7 @@
                 stats.appendChild(Object.assign(document.createElement('div'), {
                     className: "text-xs font-semibold",
                     innerHTML: `<div class="flex justify-between text-slate-700 items-center mb-1">
-                        <span>${cat}</span>
+                        <span>${escapeHtml(cat)}</span>
                         <span class="text-slate-500">$${sum.toFixed(2)} (${Math.round(pct)}%)</span>
                     </div>
                     <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -679,8 +662,8 @@
 
                     tableHtml += `<tr onclick="window.openExpenseModal('${exp.id}')" class="hover:bg-slate-50 transition-colors group cursor-pointer">
                         <td class="p-2 sm:p-3 sm:pl-5 text-slate-500 truncate">${parsedDate.displayStr}</td>
-                        <td class="p-2 sm:p-3"><span class="cat-badge ${meta.badgeClass}">${exp.category}</span></td>
-                        <td class="p-2 sm:p-3 font-semibold text-slate-900 truncate">${exp.description}</td>
+                        <td class="p-2 sm:p-3"><span class="cat-badge ${meta.badgeClass}">${escapeHtml(exp.category)}</span></td>
+                        <td class="p-2 sm:p-3 font-semibold text-slate-900 truncate">${escapeHtml(exp.description)}</td>
                         <td class="p-2 sm:p-3 text-right sm:pr-5 font-semibold text-slate-900">
                             <div class="flex items-center justify-end gap-1 sm:gap-2">
                                 <span class="truncate">-$${amt.toFixed(2)}</span>
