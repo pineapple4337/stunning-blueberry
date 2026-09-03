@@ -258,6 +258,46 @@
         } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
         import { APP_CONFIG } from './config.js';
 
+        // 1. Ensure updateMonthDisplay runs on load
+        document.addEventListener('DOMContentLoaded', () => {
+            displayDate = new Date(); // Defaults to current date
+            updateMonthDisplay();
+            initDefaultDate();
+            setupEventListeners();
+            fetchExpensesFromFirestore();
+        });
+        
+        // 2. Enhance parseEntryDate to safely handle Firestore Timestamps and strings
+        function parseEntryDate(dateVal) {
+            if (!dateVal) return { year: null, month: null, displayStr: '', isoDate: '' };
+        
+            // Handle Firestore Timestamp object
+            if (typeof dateVal === 'object' && dateVal.seconds !== undefined) {
+                dateVal = new Date(dateVal.seconds * 1000).toISOString().split('T')[0];
+            }
+        
+            const str = String(dateVal).trim().split('T')[0];
+            const parts = str.includes('/') ? str.split('/') : str.split('-');
+        
+            if (parts.length === 3) {
+                // Handle YYYY-MM-DD vs DD/MM/YYYY
+                const isDash = str.includes('-');
+                const y = isDash ? parts[0] : parts[2];
+                const m = parts[1];
+                const d = isDash ? parts[2] : parts[0];
+        
+                return {
+                    year: parseInt(y, 10),
+                    month: parseInt(m, 10),
+                    isoDate: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`,
+                    displayStr: `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+                };
+            }
+        
+            return { year: null, month: null, displayStr: str, isoDate: str };
+        }
+        
+        
         // --- FIREBASE INITIALIZATION ---
         const app = initializeApp(APP_CONFIG.FIREBASE_CONFIG);
         const db = getFirestore(app);
