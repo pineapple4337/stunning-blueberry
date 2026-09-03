@@ -10,63 +10,59 @@ export const APP_CONFIG = {
     appId: "1:1036960578872:web:488c01c0efa5cbd1b4d5cd",
     measurementId: "G-WL6GQD3RGT"
   },
-  defaultCategory: 'shopping',
-  dateFormat: 'YYYY-MM-DD',
+
+  defaultCategory: "shopping",
+  dateFormat: "YYYY-MM-DD",
   autoTimeoutMs: 15 * 60 * 1000
 };
 
 export const CATEGORY_MAP = {
-  'food & drink': { label: 'food & drink', emoji: '🍔', badgeColor: 'pastel-pink-2 text-stone-800', barColor: 'pastel-pink-1' },
-  'shopping': { label: 'shopping', emoji: '🛍️', badgeColor: 'pastel-pink-2 text-stone-800', barColor: 'pastel-orchid' },
-  'subscriptions': { label: 'subscriptions', emoji: '📺', badgeColor: 'pastel-purple-2 text-stone-800', barColor: 'pastel-purple-1' },
-  'events': { label: 'events', emoji: '🎟️', badgeColor: 'pastel-blue text-stone-800', barColor: 'pastel-blue' },
-  'fees': { label: 'fees', emoji: '💵', badgeColor: 'pastel-yellow text-stone-800', barColor: 'pastel-yellow' },
-  'health': { label: 'health', emoji: '💊', badgeColor: 'pastel-mint text-stone-800', barColor: 'pastel-mint' },
-  'transport': { label: 'transport', emoji: '🚌', badgeColor: 'pastel-mint text-stone-800', barColor: 'pastel-mint' }
-};
+  "food & drink": {
+    label: "food & drink",
+    emoji: "🍔",
+    badgeColor: "pastel-pink-2 text-stone-800",
+    barColor: "pastel-pink-1"
+  },
 
-// Unified category mapping matching HTML dropdowns and CSS colors
-export const CATEGORY_MAP = {
-  'food & drink': { 
-    label: 'food & drink', 
-    emoji: '🍔', 
-    badgeColor: 'pastel-pink-2 text-stone-800', 
-    barColor: 'pastel-pink-1' 
+  shopping: {
+    label: "shopping",
+    emoji: "🛍️",
+    badgeColor: "pastel-pink-2 text-stone-800",
+    barColor: "pastel-orchid"
   },
-  'shopping': { 
-    label: 'shopping', 
-    emoji: '🛍️', 
-    badgeColor: 'pastel-pink-2 text-stone-800', 
-    barColor: 'pastel-orchid' 
+
+  subscriptions: {
+    label: "subscriptions",
+    emoji: "📺",
+    badgeColor: "pastel-purple-2 text-stone-800",
+    barColor: "pastel-purple-1"
   },
-  'subscriptions': { 
-    label: 'subscriptions', 
-    emoji: '📺', 
-    badgeColor: 'pastel-purple-2 text-stone-800', 
-    barColor: 'pastel-purple-1' 
+
+  events: {
+    label: "events",
+    emoji: "🎟️",
+    badgeColor: "pastel-blue text-stone-800",
+    barColor: "pastel-blue"
   },
-  'events': { 
-    label: 'events', 
-    emoji: '🎟️', 
-    badgeColor: 'pastel-blue text-stone-800', 
-    barColor: 'pastel-blue' 
+
+  fees: {
+    label: "fees",
+    emoji: "💵",
+    badgeColor: "pastel-yellow text-stone-800",
+    barColor: "pastel-yellow"
   },
-  'fees': { 
-    label: 'fees', 
-    emoji: '💵', 
-    badgeColor: 'pastel-yellow text-stone-800', 
-    barColor: 'pastel-yellow' 
+
+  health: {
+    label: "health",
+    emoji: "💊",
+    badgeColor: "pastel-mint text-stone-800",
+    barColor: "pastel-mint"
   },
-  'health': { 
-    label: 'health', 
-    emoji: '💊', 
-    badgeColor: 'pastel-mint text-stone-800', 
-    barColor: 'pastel-mint' 
-  },
-  'transport': { 
-    label: 'transport', 
-    emoji: '🚌', 
-    badgeColor: 'pastel-mint text-stone-800', 
-    barColor: 'pastel-mint' 
+
+  transport: {
+    label: "transport",
+    emoji: "🚌",
+    badgeColor: "pastel-mint text-stone-800",
+    barColor: "pastel-mint"
   }
 };
