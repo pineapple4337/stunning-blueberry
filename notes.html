@@ -6,10 +6,9 @@
     <title>smart notes</title>
     <!-- tailwind css cdn -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- supabase js sdk -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
+        /* import inter font */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         :root {
@@ -20,6 +19,7 @@
             --text-muted: #64748b;
         }
 
+        /* global font reset and lowercase enforcement */
         * {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
             text-transform: lowercase !important;
@@ -28,26 +28,20 @@
         body { 
             color: var(--text-main);
             background-color: var(--bg-main) !important;
+            background-image: none !important;
             font-size: 0.95rem;
+            letter-spacing: normal;
             line-height: 1.5;
         }
 
-        .cat-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.125rem 0.375rem;
-            border-radius: 0.375rem;
-            font-size: 0.7rem;
-            font-weight: 600;
+        h1, h2, h3, h4, h5, h6, button, input, select, textarea, option, span, p, td, th {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
-
-        .cat-tag { background-color: #f1f5f9 !important; color: #334155 !important; }
-        .cat-ai { background-color: #eef2ff !important; color: #3730a3 !important; }
 
         .glass-card {
             background: var(--card-bg) !important;
             border: 1px solid var(--border-color) !important;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
             border-radius: 12px !important;
         }
 
@@ -57,12 +51,24 @@
             color: var(--text-main) !important;
             border-radius: 8px !important;
             font-size: 0.875rem !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none !important;
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background-color: #f1f5f9;
+            color: #475569;
         }
     </style>
 </head>
@@ -82,279 +88,220 @@
 
     <main class="max-w-2xl mx-auto px-6 pt-6 space-y-6">
 
-        <!-- GEMINI API KEY INPUT CARD -->
+        <!-- GEMINI API KEY SETUP -->
         <div class="glass-card p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <div class="flex items-center gap-2">
-                <span class="cat-badge cat-ai">gemini ai</span>
-                <span class="text-xs text-slate-500 font-medium">auto-summarize raw notes (optional)</span>
+            <div class="flex-1 w-full">
+                <label class="text-xs font-semibold text-slate-500 tracking-wider block mb-1">gemini api key (optional for smart summaries)</label>
+                <input type="password" id="gemini-api-key-input" placeholder="paste api key here..." class="w-full px-3 py-1.5 text-xs">
             </div>
-            <input type="text" id="gemini-api-key" placeholder="paste gemini api key (optional)" autocomplete="off" class="px-3 py-1.5 w-full sm:w-64 text-xs">
+            <button id="save-api-key-btn" class="w-full sm:w-auto px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-all cursor-pointer self-end">
+                save key
+            </button>
         </div>
 
-        <!-- ADD NOTE FORM -->
+        <!-- QUICK CAPTURE FORM -->
         <div class="glass-card p-6 space-y-4">
-            <h2 class="text-xs font-semibold text-slate-500 tracking-wider">quick capture</h2>
+            <h2 class="text-xs font-semibold text-slate-500 tracking-wider">quick capture note</h2>
             <form id="note-form" class="space-y-3">
-                <input type="text" id="note-title" placeholder="title or topic (optional)" class="w-full px-3.5 py-2">
-                <textarea id="note-content" rows="4" placeholder="dump raw thoughts, use #hashtags for tags, or bullet points..." required class="w-full px-3.5 py-2.5 text-sm"></textarea>
-                <button type="submit" id="save-note-btn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer">
-                    <span>save note</span>
+                <input type="text" id="note-title" placeholder="title or main topic (optional)" class="w-full px-3.5 py-2">
+                <textarea id="note-content" rows="4" placeholder="dump raw thoughts, meeting notes, ideas..." required class="w-full px-3.5 py-2.5"></textarea>
+                <button type="submit" id="save-note-btn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2">
+                    <span>process & save note</span>
                 </button>
             </form>
         </div>
 
-        <!-- MERGE TOOLBAR -->
-        <div id="merge-toolbar" class="glass-card p-4 flex justify-between items-center bg-blue-50/50 border-blue-200 hidden">
-            <div class="flex items-center gap-2">
-                <span id="selected-count" class="text-xs font-bold text-blue-900">0 notes selected</span>
-            </div>
+        <!-- MERGE TOOLBAR (Hidden by default) -->
+        <div id="merge-toolbar" class="glass-card p-4 flex justify-between items-center hidden bg-blue-50/50 border-blue-200">
+            <span id="selected-count-text" class="text-xs font-semibold text-blue-900">0 notes selected</span>
             <div class="flex gap-2">
-                <button id="cancel-selection-btn" onclick="window.clearSelection()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer">
-                    cancel
-                </button>
-                <button id="merge-notes-btn" onclick="window.mergeSelectedNotes()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg cursor-pointer">
-                    merge selected
-                </button>
+                <button id="cancel-selection-btn" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer">cancel</button>
+                <button id="merge-selected-btn" class="px-3.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer">merge notes</button>
             </div>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- SAVED NOTES LIST -->
         <div class="glass-card p-6 space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
                 <h2 class="text-xs font-semibold text-slate-500 tracking-wider">saved notes</h2>
-                <span id="note-count-badge" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">0 notes</span>
+                <span id="notes-total-count" class="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">0 notes</span>
             </div>
-            
+
             <div id="notes-list" class="space-y-4">
-                <p class="py-6 text-center text-xs text-slate-400">loading notes...</p>
+                <div class="py-8 text-center text-xs text-slate-400">loading notes...</div>
             </div>
         </div>
 
     </main>
 
     <!-- EDIT NOTE MODAL -->
-    <div id="edit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden" onclick="if(event.target === this) window.closeEditModal()">
-        <div class="glass-card max-w-lg w-full p-6 space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h2 class="text-xs font-semibold text-slate-500 tracking-wider">edit note</h2>
-                <button onclick="window.closeEditModal()" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
-            </div>
+    <div id="edit-note-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card w-full max-w-lg p-6 space-y-4 bg-white">
+            <h3 class="text-base font-bold text-slate-900">edit note</h3>
             <form id="edit-note-form" class="space-y-3">
                 <input type="hidden" id="edit-note-id">
-                <input type="text" id="edit-note-title" placeholder="title or topic" class="w-full px-3.5 py-2">
-                <textarea id="edit-note-content" rows="6" required class="w-full px-3.5 py-2.5 text-sm"></textarea>
-                
-                <div class="flex items-center gap-2 pt-1">
-                    <input type="checkbox" id="re-summarize-check" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600">
-                    <label for="re-summarize-check" class="text-xs text-slate-500 font-medium cursor-pointer">regenerate ai summary on update (uses api tokens)</label>
+                <div>
+                    <label class="text-xs font-semibold text-slate-500 tracking-wider block mb-1">title</label>
+                    <input type="text" id="edit-note-title" class="w-full px-3.5 py-2">
                 </div>
-
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="window.closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">
-                        cancel
-                    </button>
-                    <button type="submit" id="update-note-btn" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                        update note
-                    </button>
+                <div>
+                    <label class="text-xs font-semibold text-slate-500 tracking-wider block mb-1">raw content</label>
+                    <textarea id="edit-note-content" rows="6" required class="w-full px-3.5 py-2.5"></textarea>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="edit-regenerate-ai" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                    <label for="edit-regenerate-ai" class="text-xs font-semibold text-slate-600 cursor-pointer">regenerate ai summary & tags on save</label>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="cancel-edit-modal-btn" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-all cursor-pointer">cancel</button>
+                    <button type="submit" id="save-edit-modal-btn" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer">save changes</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import {
+            getFirestore,
+            collection,
+            getDocs,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            doc,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
         import { APP_CONFIG } from './config.js';
 
-        const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+        // --- FIREBASE INITIALIZATION ---
+        const app = initializeApp(APP_CONFIG.FIREBASE_CONFIG);
+        const db = getFirestore(app);
+        const notesRef = collection(db, 'notes');
+
+        // --- DOM HELPER ---
         const $ = (id) => document.getElementById(id);
 
+        // --- GLOBAL STATE ---
         let globalNotesCache = [];
         let selectedNoteIds = new Set();
 
+        // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
+            loadStoredApiKey();
             setupEventListeners();
             fetchNotes();
-            
-            const savedKey = localStorage.getItem('gemini_key');
-            if (savedKey && $('gemini-api-key')) {
-                $('gemini-api-key').value = savedKey;
-            }
         });
 
+        function loadStoredApiKey() {
+            const key = localStorage.getItem('gemini_key') || '';
+            if ($('gemini-api-key-input'))$('gemini-api-key-input').value = key;
+        }
+
         function setupEventListeners() {
-            $('gemini-api-key')?.addEventListener('input', (e) => {
-                localStorage.setItem('gemini_key', e.target.value.trim());
+            $('save-api-key-btn')?.addEventListener('click', () => {
+                const key = $('gemini-api-key-input')?.value?.trim() || '';
+                localStorage.setItem('gemini_key', key);
+                alert(key ? 'gemini api key saved locally.' : 'gemini api key cleared.');
             });
 
-            // Create Note Form
             $('note-form')?.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const titleInput = $('note-title');
-                const contentInput = $('note-content');
-                const saveBtn = $('save-note-btn');
-
-                const rawContent = contentInput.value.trim().toLowerCase();
-                const userTitle = titleInput.value.trim().toLowerCase();
-
+                const titleInput = $('note-title')?.value?.trim() || '';
+                const rawContent = $('note-content')?.value?.trim() || '';
                 if (!rawContent) return;
 
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = `<span>processing...</span>`;
+                const submitBtn = $('save-note-btn');
+                if (submitBtn) submitBtn.disabled = true;
 
                 try {
-                    const aiResult = await processNoteContent(rawContent, userTitle, true);
-
-                    const newNoteObj = {
-                        title: aiResult.title || userTitle || 'untitled note',
+                    const processed = await processNoteWithAI(titleInput, rawContent);
+                    const newNote = {
+                        title: processed.title,
                         raw_content: rawContent,
-                        summary: aiResult.summary,
-                        tags: aiResult.tags || []
+                        summary: processed.summary,
+                        tags: processed.tags,
+                        created_at: serverTimestamp()
                     };
 
-                    const { data, error } = await supabase
-                        .from('notes')
-                        .insert([newNoteObj])
-                        .select();
+                    const docRef = await addDoc(notesRef, newNote);
+                    
+                    globalNotesCache.unshift({
+                        id: docRef.id,
+                        ...newNote,
+                        created_at: new Date()
+                    });
 
-                    if (error) throw error;
-
-                    if (data && data.length > 0) {
-                        globalNotesCache.unshift(data[0]);
-                    }
-
-                    titleInput.value = '';
-                    contentInput.value = '';
+                    $('note-form').reset();
                     renderNotes();
                 } catch (err) {
-                    console.error('error saving note:', err.message);
+                    console.error('failed to save note:', err.message);
+                    alert('error saving note: ' + err.message);
                 } finally {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = `<span>save note</span>`;
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
 
-            // Update Note Form
             $('edit-note-form')?.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const id = $('edit-note-id').value;
-                const title = $('edit-note-title').value.trim().toLowerCase();
-                const content = $('edit-note-content').value.trim().toLowerCase();
-                const shouldResummarize = $('re-summarize-check')?.checked || false;
-                const updateBtn = $('update-note-btn');
+                const titleInput = $('edit-note-title').value.trim();
+                const rawContent = $('edit-note-content').value.trim();
+                const shouldRegenerate = $('edit-regenerate-ai').checked;
 
-                if (!content || !id) return;
+                if (!rawContent || !id) return;
 
-                updateBtn.disabled = true;
-                updateBtn.innerText = 'updating...';
+                const submitBtn = $('save-edit-modal-btn');
+                if (submitBtn) submitBtn.disabled = true;
 
                 try {
-                    const existingNote = globalNotesCache.find(n => String(n.id) === String(id));
-                    const aiResult = await processNoteContent(content, title, shouldResummarize);
-
-                    const updatedFields = {
-                        title: aiResult.title || title || 'untitled note',
-                        raw_content: content,
-                        summary: shouldResummarize ? aiResult.summary : (existingNote?.summary || aiResult.summary),
-                        tags: aiResult.tags || []
+                    let updatedFields = {
+                        title: titleInput,
+                        raw_content: rawContent
                     };
 
-                    const { error } = await supabase
-                        .from('notes')
-                        .update(updatedFields)
-                        .eq('id', id);
+                    if (shouldRegenerate) {
+                        const processed = await processNoteWithAI(titleInput, rawContent);
+                        updatedFields.title = processed.title;
+                        updatedFields.summary = processed.summary;
+                        updatedFields.tags = processed.tags;
+                    }
 
-                    if (error) throw error;
+                    await updateDoc(doc(db, 'notes', id), updatedFields);
 
-                    const index = globalNotesCache.findIndex(n => String(n.id) === String(id));
+                    const index = globalNotesCache.findIndex(n => n.id === id);
                     if (index !== -1) {
                         globalNotesCache[index] = { ...globalNotesCache[index], ...updatedFields };
                     }
 
-                    window.closeEditModal();
                     renderNotes();
+                    closeEditModal();
                 } catch (err) {
-                    console.error('error updating note:', err.message);
+                    console.error('failed to update note:', err.message);
+                    alert('error updating note: ' + err.message);
                 } finally {
-                    updateBtn.disabled = false;
-                    updateBtn.innerText = 'update note';
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
-        }
 
-        // --- SMART PARSING ---
-        async function processNoteContent(content, userTitle, allowAi = true) {
-            const apiKey = $('gemini-api-key')?.value?.trim() || APP_CONFIG.GEMINI_API_KEY || '';
-        
-            if (apiKey && allowAi) {
-                try {
-                    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-                    
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'x-goog-api-key': apiKey
-                        },
-                        body: JSON.stringify({
-                            // System instruction sets the behavior once
-                            systemInstruction: {
-                                parts: [{ text: "Extract facts in UK English. Max 10-word summary. Direct facts only. No meta-talk like 'this note...'." }]
-                            },
-                            contents: [{ 
-                                // Minimal prompt payload
-                                parts: [{ text: content }] 
-                            }],
-                            generationConfig: {
-                                responseMimeType: "application/json",
-                                responseSchema: {
-                                    type: "OBJECT",
-                                    properties: {
-                                        title: { type: "STRING" },
-                                        summary: { type: "STRING" },
-                                        tags: { type: "ARRAY", items: { type: "STRING" } }
-                                    },
-                                    required: ["title", "summary", "tags"]
-                                }
-                            }
-                        })
-                    });
-        
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Gemini API Error details:', errorText);
-                        throw new Error(`API returned HTTP ${response.status}`);
-                    }
-        
-                    const data = await response.json();
-                    const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-                    const parsed = typeof textResult === 'string' ? JSON.parse(textResult) : textResult;
-        
-                    return {
-                        title: userTitle || parsed.title || 'quick note',
-                        summary: parsed.summary || content.slice(0, 100),
-                        tags: parsed.tags || []
-                    };
-                } catch (err) {
-                    console.warn('AI request failed, falling back to local parsing:', err);
-                }
-            }
-        
-            // Local fallback parsing
-            const hashtagRegex = /#(\w+)/g;
-            const extractedTags = [];
-            let match;
-            while ((match = hashtagRegex.exec(content)) !== null) {
-                extractedTags.push(match[1].toLowerCase());
-            }
-        
-            const cleanLines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            const fallbackTitle = userTitle || (cleanLines[0] ? cleanLines[0].replace(/^#*\s*/, '').slice(0, 35) : 'untitled note');
-            const localSummary = cleanLines.join(' ').slice(0, 120) + (content.length > 120 ? '...' : '');
-        
-            return {
-                title: fallbackTitle,
-                summary: localSummary,
-                tags: extractedTags.length > 0 ? Array.from(new Set(extractedTags)) : ['quick-note']
-            };
+            $('cancel-selection-btn')?.addEventListener('click', () => {
+                selectedNoteIds.clear();
+                updateMergeToolbar();
+                renderNotes();
+            });
+
+            $('merge-selected-btn')?.addEventListener('click', async () => {
+                if (selectedNoteIds.size < 2) return;
+                await mergeSelectedNotes();
+            });
+
+            $('cancel-edit-modal-btn')?.addEventListener('click', () => closeEditModal());$('edit-note-modal')?.addEventListener('click', (e) => {
+                if (e.target === $('edit-note-modal')) closeEditModal();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeEditModal();
+            });
         }
 
         // --- FETCH NOTES ---
@@ -363,178 +310,250 @@
             if (!list) return;
 
             try {
-                const { data: notes, error } = await supabase
-                    .from('notes')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                const snapshot = await getDocs(notesRef);
+                
+                globalNotesCache = snapshot.docs.map(docSnap => {
+                    const data = docSnap.data();
+                    return {
+                        id: docSnap.id,
+                        ...data
+                    };
+                });
 
-                if (error) throw error;
+                // JavaScript-side sort by created_at descending
+                globalNotesCache.sort((a, b) => {
+                    const timeA = parseCreatedAtTimestamp(a.created_at);
+                    const timeB = parseCreatedAtTimestamp(b.created_at);
+                    return timeB - timeA;
+                });
 
-                globalNotesCache = notes || [];
                 renderNotes();
             } catch (err) {
                 console.error('failed to fetch notes:', err.message);
-                list.innerHTML = `<p class="py-6 text-center text-xs text-slate-400">error loading notes</p>`;
+                list.innerHTML = `<div class="py-8 text-center text-xs text-red-400">error loading notes</div>`;
             }
         }
 
-        // --- RENDER NOTES ---
+        function parseCreatedAtTimestamp(ts) {
+            if (!ts) return 0;
+            if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+            if (ts.seconds) return ts.seconds * 1000;
+            const parsed = new Date(ts).getTime();
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // --- GEMINI & LOCAL AI PROCESSING ---
+        async function processNoteWithAI(userTitle, rawContent) {
+            const apiKey = localStorage.getItem('gemini_key') || '';
+            
+            if (apiKey) {
+                try {
+                    const prompt = `Analyze the following raw note text and produce a structured JSON response.
+Return ONLY valid JSON matching this exact schema, without markdown code fencing:
+{
+  "title": "A concise descriptive title (use user provided title '${userTitle}' if relevant, else summarize)",
+  "summary": "A 1 to 2 sentence bulleted or clear summary of the core points",
+  "tags": ["array", "of", "3-5", "lowercase", "relevant", "tags"]
+}
+
+Raw note content:
+${rawContent}`;
+
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+
+                    if (res.ok) {
+                        const jsonRes = await res.json();
+                        let text = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                        
+                        if (text.startsWith('```')) {
+                            text = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+                        }
+
+                        const parsed = JSON.parse(text);
+                        return {
+                            title: parsed.title || userTitle || extractFallbackTitle(rawContent),
+                            summary: parsed.summary || rawContent.slice(0, 150),
+                            tags: Array.isArray(parsed.tags) ? parsed.tags : extractFallbackTags(rawContent)
+                        };
+                    }
+                } catch (err) {
+                    console.warn('gemini API processing failed, falling back to local parsing:', err.message);
+                }
+            }
+
+            // Fallback parsing if Gemini is not configured or fails
+            return {
+                title: userTitle || extractFallbackTitle(rawContent),
+                summary: rawContent.length > 180 ? rawContent.slice(0, 180) + '...' : rawContent,
+                tags: extractFallbackTags(rawContent)
+            };
+        }
+
+        function extractFallbackTitle(text) {
+            const firstLine = text.trim().split('\n')[0] || 'untitled note';
+            return firstLine.length > 40 ? firstLine.slice(0, 40) + '...' : firstLine;
+        }
+
+        function extractFallbackTags(text) {
+            const words = text.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+            const uniqueWords = [...new Set(words)].filter(w => !['this', 'that', 'with', 'from', 'have', 'were', 'your', 'about'].includes(w));
+            return uniqueWords.slice(0, 3);
+        }
+
+        // --- MERGING FUNCTIONALITY ---
+        async function mergeSelectedNotes() {
+            const selectedList = globalNotesCache.filter(n => selectedNoteIds.has(n.id));
+            if (selectedList.length < 2) return;
+
+            const combinedRaw = selectedList.map(n => `--- ${n.title} ---\n${n.raw_content}`).join('\n\n');
+            const defaultMergedTitle = `merged note (${selectedList.length} items)`;
+
+            try {
+                const processed = await processNoteWithAI(defaultMergedTitle, combinedRaw);
+                
+                const newMergedNote = {
+                    title: processed.title,
+                    raw_content: combinedRaw,
+                    summary: processed.summary,
+                    tags: processed.tags,
+                    created_at: serverTimestamp()
+                };
+
+                const docRef = await addDoc(notesRef, newMergedNote);
+
+                // Delete original merged notes
+                for (const oldNote of selectedList) {
+                    await deleteDoc(doc(db, 'notes', oldNote.id));
+                }
+
+                globalNotesCache = globalNotesCache.filter(n => !selectedNoteIds.has(n.id));
+                globalNotesCache.unshift({
+                    id: docRef.id,
+                    ...newMergedNote,
+                    created_at: new Date()
+                });
+
+                selectedNoteIds.clear();
+                updateMergeToolbar();
+                renderNotes();
+            } catch (err) {
+                console.error('failed to merge notes:', err.message);
+                alert('error merging notes: ' + err.message);
+            }
+        }
+
+        // --- RENDER NOTES & UI ---
         function renderNotes() {
             const list = $('notes-list');
-            const badge = $('note-count-badge');
             if (!list) return;
 
-            if (badge) badge.textContent = `${globalNotesCache.length} notes`;
+            if ($('notes-total-count')) {
+                $('notes-total-count').textContent = `${globalNotesCache.length} notes`;
+            }
 
             if (globalNotesCache.length === 0) {
-                list.innerHTML = `<p class="py-6 text-center text-xs text-slate-400">no notes saved yet</p>`;
+                list.innerHTML = `<div class="py-8 text-center text-xs text-slate-400">no notes captured yet</div>`;
                 return;
             }
 
             list.innerHTML = globalNotesCache.map(note => {
-                const dateObj = new Date(note.created_at || Date.now());
+                const isChecked = selectedNoteIds.has(note.id);
+                const createdMs = parseCreatedAtTimestamp(note.created_at);
+                const dateObj = createdMs ? new Date(createdMs) : new Date();
                 const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
-                
-                const isChecked = selectedNoteIds.has(String(note.id));
-                const tagsHtml = (note.tags || []).map(t => `<span class="cat-badge cat-tag mr-1">#${t}</span>`).join('');
-                const wordCount = note.raw_content.trim().split(/\s+/).length;
-                const readTime = Math.max(1, Math.ceil(wordCount / 200));
+
+                const tagsArr = Array.isArray(note.tags) ? note.tags : [];
+                const tagsHtml = tagsArr.map(t => `<span class="tag-pill">${t}</span>`).join(' ');
 
                 return `
-                    <div onclick="window.openEditModal('${note.id}')" 
-                        class="border border-slate-100 rounded-lg p-4 space-y-2 hover:border-slate-300 transition-all group relative bg-slate-50/50 cursor-pointer hover:shadow-sm">
-                        <div class="flex justify-between items-start gap-3">
+                    <div class="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all space-y-2 group">
+                        <div class="flex items-start justify-between gap-3">
                             <div class="flex items-center gap-2.5 min-w-0">
                                 <input type="checkbox" ${isChecked ? 'checked' : ''} 
-                                    onclick="event.stopPropagation()"
                                     onchange="window.toggleSelectNote('${note.id}')"
                                     class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0">
-                                <h3 class="text-sm font-bold text-slate-900 truncate">${note.title}</h3>
+                                <h3 onclick="window.openEditModal('${note.id}')" class="text-sm font-bold text-slate-900 truncate hover:text-blue-600 cursor-pointer transition-colors">
+                                    ${note.title || 'untitled note'}
+                                </h3>
                             </div>
-                            <div class="flex items-center gap-1.5 shrink-0">
-                                <span class="text-[11px] text-slate-400 font-medium mr-1">${formattedDate} • ${readTime} min read</span>
-                                <button onclick="event.stopPropagation(); window.deleteNote('${note.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-colors" title="delete note">
+                            <div class="flex items-center gap-1 shrink-0">
+                                <span class="text-[11px] text-slate-400 font-medium mr-1">${formattedDate}</span>
+                                <button onclick="window.openEditModal('${note.id}')" class="text-slate-400 hover:text-blue-600 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="edit note">
+                                    ✎
+                                </button>
+                                <button onclick="window.deleteNote('${note.id}')" class="text-slate-300 hover:text-red-500 text-xs font-bold p-1 cursor-pointer transition-opacity opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="delete note">
                                     ✕
                                 </button>
                             </div>
                         </div>
 
-                        ${note.summary ? `<div class="p-2.5 bg-blue-50/60 rounded-md text-xs font-medium text-slate-700 border border-blue-100/50">
-                            <span class="font-bold text-blue-700 block mb-0.5">summary</span>
-                            ${note.summary}
-                        </div>` : ''}
+                        ${note.summary ? `<p class="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50 p-2.5 rounded-lg border border-slate-100">${note.summary}</p>` : ''}
 
-                        <p class="text-xs text-slate-500 font-normal whitespace-pre-wrap leading-relaxed">${note.raw_content}</p>
+                        <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${note.raw_content || ''}</p>
 
-                        <div class="pt-1 flex items-center justify-between">
-                            <div>${tagsHtml}</div>
-                            <span class="text-[10px] text-slate-400 font-semibold">${wordCount} words</span>
-                        </div>
+                        ${tagsHtml ? `<div class="flex flex-wrap gap-1.5 pt-1">${tagsHtml}</div>` : ''}
                     </div>
                 `;
             }).join('');
-
-            updateMergeToolbar();
         }
 
-        // --- EDIT MODAL HANDLERS ---
+        function updateMergeToolbar() {
+            const toolbar = $('merge-toolbar');
+            const countText = $('selected-count-text');
+            if (!toolbar || !countText) return;
+
+            const count = selectedNoteIds.size;
+            if (count > 0) {
+                toolbar.classList.remove('hidden');
+                countText.textContent = `${count} note${count > 1 ? 's' : ''} selected`;
+            } else {
+                toolbar.classList.add('hidden');
+            }
+        }
+
+        // --- GLOBAL ACTIONS ---
+        window.toggleSelectNote = function(id) {
+            if (selectedNoteIds.has(id)) {
+                selectedNoteIds.delete(id);
+            } else {
+                selectedNoteIds.add(id);
+            }
+            updateMergeToolbar();
+        };
+
+        window.deleteNote = async function(id) {
+            try {
+                await deleteDoc(doc(db, 'notes', id));
+                globalNotesCache = globalNotesCache.filter(n => n.id !== id);
+                selectedNoteIds.delete(id);
+                updateMergeToolbar();
+                renderNotes();
+            } catch (err) {
+                console.error('failed to delete note:', err.message);
+                alert('error deleting note: ' + err.message);
+            }
+        };
+
         window.openEditModal = function(id) {
-            const note = globalNotesCache.find(n => String(n.id) === String(id));
+            const note = globalNotesCache.find(n => n.id === id);
             if (!note) return;
 
             $('edit-note-id').value = note.id;
             $('edit-note-title').value = note.title || '';
             $('edit-note-content').value = note.raw_content || '';
-            if ($('re-summarize-check')) $('re-summarize-check').checked = false;
-            $('edit-modal')?.classList.remove('hidden');
+            $('edit-regenerate-ai').checked = false;
+
+            $('edit-note-modal').classList.remove('hidden');
         };
 
         window.closeEditModal = function() {
-            $('edit-modal')?.classList.add('hidden');
-        };
-
-        // --- SELECTION & MERGE HANDLERS ---
-        window.toggleSelectNote = function(id) {
-            const strId = String(id);
-            if (selectedNoteIds.has(strId)) {
-                selectedNoteIds.delete(strId);
-            } else {
-                selectedNoteIds.add(strId);
-            }
-            updateMergeToolbar();
-        };
-
-        window.clearSelection = function() {
-            selectedNoteIds.clear();
-            renderNotes();
-        };
-
-        function updateMergeToolbar() {
-            const toolbar = $('merge-toolbar');
-            const countText = $('selected-count');
-            
-            if (selectedNoteIds.size > 0) {
-                toolbar?.classList.remove('hidden');
-                if (countText) countText.textContent = `${selectedNoteIds.size} notes selected`;
-            } else {
-                toolbar?.classList.add('hidden');
-            }
-        }
-
-        window.mergeSelectedNotes = async function() {
-            if (selectedNoteIds.size < 2) {
-                alert('select at least 2 notes to merge.');
-                return;
-            }
-
-            const notesToMerge = globalNotesCache.filter(n => selectedNoteIds.has(String(n.id)));
-            const mergedContent = notesToMerge.map(n => `--- ${n.title} ---\n${n.raw_content}`).join('\n\n');
-            const mergedTitle = `merged: ${notesToMerge[0].title} + ${notesToMerge.length - 1} more`;
-
-            try {
-                const aiResult = await processNoteContent(mergedContent, mergedTitle, true);
-
-                const newMergedObj = {
-                    title: mergedTitle,
-                    raw_content: mergedContent,
-                    summary: aiResult.summary,
-                    tags: Array.from(new Set(notesToMerge.flatMap(n => n.tags || [])))
-                };
-
-                const { data, error } = await supabase
-                    .from('notes')
-                    .insert([newMergedObj])
-                    .select();
-
-                if (error) throw error;
-
-                const idsToDelete = Array.from(selectedNoteIds);
-                await supabase.from('notes').delete().in('id', idsToDelete);
-
-                globalNotesCache = globalNotesCache.filter(n => !selectedNoteIds.has(String(n.id)));
-                if (data && data.length > 0) {
-                    globalNotesCache.unshift(data[0]);
-                }
-
-                selectedNoteIds.clear();
-                renderNotes();
-            } catch (err) {
-                console.error('failed to merge notes:', err.message);
-            }
-        };
-
-        // --- DELETE HANDLER ---
-        window.deleteNote = async function(id) {
-            try {
-                const { error } = await supabase.from('notes').delete().eq('id', id);
-                if (error) throw error;
-
-                globalNotesCache = globalNotesCache.filter(n => String(n.id) !== String(id));
-                selectedNoteIds.delete(String(id));
-                renderNotes();
-            } catch (err) {
-                console.error('failed to delete note:', err.message);
-            }
+            $('edit-note-modal')?.classList.add('hidden');
         };
     </script>
 </body>
