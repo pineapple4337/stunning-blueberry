@@ -6,8 +6,6 @@
     <title>task manager</title>
     <!-- tailwind css cdn -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- supabase js sdk -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         /* import inter font */
@@ -210,10 +208,23 @@
     </div>
 
     <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import {
+            getFirestore,
+            collection,
+            getDocs,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            doc,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
         import { APP_CONFIG } from './config.js';
 
-        // --- SUPABASE CLIENT INITIALIZATION ---
-        const supabase = window.supabase?.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+        // --- FIREBASE INITIALIZATION ---
+        const app = initializeApp(APP_CONFIG.FIREBASE_CONFIG);
+        const db = getFirestore(app);
+        const todosRef = collection(db, 'todos');
 
         // --- DOM HELPER ---
         const $ = (id) => document.getElementById(id);
@@ -254,23 +265,20 @@
                 if (!title) return;
 
                 try {
-                    const newTaskObj = { title, is_complete: false, category };
+                    const newTaskObj = {
+                        title,
+                        is_complete: false,
+                        category,
+                        created_at: serverTimestamp()
+                    };
                     
-                    const { data, error } = await supabase
-                        .from('todos')
-                        .insert([newTaskObj])
-                        .select();
-
-                    if (error) {
-                        const { data: fallbackData, error: fallbackError } = await supabase
-                            .from('todos')
-                            .insert([{ title, is_complete: false }])
-                            .select();
-                        if (fallbackError) throw fallbackError;
-                        if (fallbackData) globalTasksCache.unshift(fallbackData[0]);
-                    } else if (data) {
-                        globalTasksCache.unshift(data[0]);
-                    }
+                    const docRef = await addDoc(todosRef, newTaskObj);
+                    
+                    globalTasksCache.unshift({
+                        id: docRef.id,
+                        ...newTaskObj,
+                        created_at: new Date()
+                    });
 
                     input.value = '';
                     renderTasks();
@@ -286,25 +294,13 @@
                 const title = $('edit-task-title').value.trim().toLowerCase();
                 const category = $('edit-task-category').value.toLowerCase();
 
-                if (!title) return;
+                if (!title || !id) return;
 
                 try {
                     const updateObj = { title, category };
+                    await updateDoc(doc(db, 'todos', id), updateObj);
 
-                    let { error } = await supabase
-                        .from('todos')
-                        .update(updateObj)
-                        .eq('id', id);
-
-                    if (error) {
-                        const { error: fallbackError } = await supabase
-                            .from('todos')
-                            .update({ title })
-                            .eq('id', id);
-                        if (fallbackError) throw fallbackError;
-                    }
-
-                    const index = globalTasksCache.findIndex(t => t.id == id);
+                    const index = globalTasksCache.findIndex(t => t.id === id);
                     if (index !== -1) {
                         globalTasksCache[index].title = title;
                         globalTasksCache[index].category = category;
@@ -325,16 +321,13 @@
 
             // Clear Completed Tasks
             $('clear-completed-btn')?.addEventListener('click', async () => {
-                const completedIds = globalTasksCache.filter(t => t.is_complete).map(t => t.id);
-                if (completedIds.length === 0) return;
+                const completedTasks = globalTasksCache.filter(t => t.is_complete);
+                if (completedTasks.length === 0) return;
 
                 try {
-                    const { error } = await supabase
-                        .from('todos')
-                        .delete()
-                        .in('id', completedIds);
-
-                    if (error) throw error;
+                    for (const task of completedTasks) {
+                        await deleteDoc(doc(db, 'todos', task.id));
+                    }
 
                     globalTasksCache = globalTasksCache.filter(t => !t.is_complete);
                     renderTasks();
@@ -361,19 +354,35 @@
             if (!list) return;
 
             try {
-                const { data: todos, error } = await supabase
-                    .from('todos')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                const snapshot = await getDocs(todosRef);
 
-                if (error) throw error;
+                globalTasksCache = snapshot.docs.map(docSnap => {
+                    return {
+                        id: docSnap.id,
+                        ...docSnap.data()
+                    };
+                });
 
-                globalTasksCache = todos || [];
+                // JavaScript-side sort by created_at descending
+                globalTasksCache.sort((a, b) => {
+                    const timeA = parseCreatedAtTimestamp(a.created_at);
+                    const timeB = parseCreatedAtTimestamp(b.created_at);
+                    return timeB - timeA;
+                });
+
                 renderTasks();
             } catch (err) {
                 console.error('failed to fetch tasks:', err.message);
                 list.innerHTML = `<li class="py-6 text-center text-xs text-red-400">error loading tasks</li>`;
             }
+        }
+
+        function parseCreatedAtTimestamp(ts) {
+            if (!ts) return 0;
+            if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+            if (ts.seconds) return ts.seconds * 1000;
+            const parsed = new Date(ts).getTime();
+            return isNaN(parsed) ? 0 : parsed;
         }
 
         // --- RENDER TASKS & STATS ---
@@ -413,7 +422,8 @@
             }
 
             list.innerHTML = filtered.map(todo => {
-                const dateObj = new Date(todo.created_at || Date.now());
+                const createdMs = parseCreatedAtTimestamp(todo.created_at);
+                const dateObj = createdMs ? new Date(createdMs) : new Date();
                 const formattedDate = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
                 
                 const catKey = (todo.category || 'general').toLowerCase();
@@ -465,14 +475,9 @@
         // --- TASK ACTIONS ---
         window.toggleTask = async function(id, is_complete) {
             try {
-                const { error } = await supabase
-                    .from('todos')
-                    .update({ is_complete })
-                    .eq('id', id);
+                await updateDoc(doc(db, 'todos', id), { is_complete });
 
-                if (error) throw error;
-
-                const index = globalTasksCache.findIndex(t => t.id == id);
+                const index = globalTasksCache.findIndex(t => t.id === id);
                 if (index !== -1) {
                     globalTasksCache[index].is_complete = is_complete;
                 }
@@ -485,14 +490,9 @@
 
         window.deleteTask = async function(id) {
             try {
-                const { error } = await supabase
-                    .from('todos')
-                    .delete()
-                    .eq('id', id);
+                await deleteDoc(doc(db, 'todos', id));
 
-                if (error) throw error;
-
-                globalTasksCache = globalTasksCache.filter(t => t.id != id);
+                globalTasksCache = globalTasksCache.filter(t => t.id !== id);
                 renderTasks();
             } catch (err) {
                 console.error('failed to delete task:', err.message);
@@ -501,7 +501,7 @@
 
         // --- MODAL CONTROLS ---
         window.openTaskModal = function(id) {
-            const task = globalTasksCache.find(t => t.id == id);
+            const task = globalTasksCache.find(t => t.id === id);
             if (!task) return;
 
             $('edit-task-id').value = task.id;
